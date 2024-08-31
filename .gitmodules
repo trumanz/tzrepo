@@ -1,0 +1,6 @@
+[submodule "cpp-skills"]
+	path = cpp-skills
+	url = git@github.com:trumanz/cpp-skills.git
+[submodule "cppbind"]
+	path = cppbind
+	url = git@github.com:trumanz/cppbind.git
