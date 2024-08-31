@@ -5,10 +5,14 @@
 #include <cerrno>
 #include <limits>
 #include <sstream>
+#include <string>
+#include <cstdio>
+
 // Define Decimal as uint64_t for simplicity
 typedef uint64_t Decimal;
 
 extern "C" Decimal __bid64_from_string(const char* str, unsigned int rounding_mode, unsigned int* status) {
+    return std::stoll(str);
     // Define status codes
     const unsigned int STATUS_OK = 0;
     const unsigned int STATUS_INVALID_INPUT = 1;
@@ -60,7 +64,10 @@ extern "C" Decimal __bid64_from_string(const char* str, unsigned int rounding_mo
 
 
 
-extern "C" void __bid64_to_string(char* buffer, size_t buffer_size, Decimal value, unsigned int* status) {
+extern "C" void __bid64_to_string(char* buffer, Decimal value, unsigned int* status) {
+     size_t buffer_size = 64;
+     std::snprintf(buffer, buffer_size, "%lld",  value);
+     return;
     // Define status codes
     const unsigned int STATUS_OK = 0;
     const unsigned int STATUS_OVERFLOW = 1;
@@ -94,32 +101,5 @@ extern "C" void __bid64_to_string(char* buffer, size_t buffer_size, Decimal valu
     if (status) *status = STATUS_OK;
 }
 
-// Example usage in a C++ program (remove in actual implementation)
-int exmaple2() {
-    Decimal value = 12345678901234567890ULL;
-    char buffer[64];
-    unsigned int status = 0;
-
-    __bid64_to_string(buffer, sizeof(buffer), value, &status);
-
-    if (status == 0) {
-        std::cout << "Converted string: " << buffer << std::endl;
-    } else {
-        std::cout << "Conversion error with status code: " << status << std::endl;
-    }
-
-    return 0;
-}
-
-
-// Example usage in a C++ program (remove in actual implementation)
-static int exmaple() {
-    const char* str = "12345.6789";
-    unsigned int status = 0;
-    Decimal result = __bid64_from_string(str, 0, &status);
-
-    std::cout << "Converted value: " << result << std::endl;
-    std::cout << "Status: " << status << std::endl;
-
-    return 0;
-}
+ 
+ 

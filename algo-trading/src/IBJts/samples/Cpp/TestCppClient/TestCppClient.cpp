@@ -387,6 +387,23 @@ void TestCppClient::pnlSingleOperation()
     m_state = ST_PNLSINGLE_ACK;
 }
 
+
+void TestCppClient::requestBTCMktData()
+{
+
+	Contract contract;
+    contract.symbol = "BTC";
+    contract.secType = "CRYPTO"; // "CRYPTO" for cryptocurrencies
+    contract.exchange = "PAXOS"; // or "COINBASE", "KRAKEN", etc.
+    contract.currency = "USD";   // Assuming you're interested in BTC/USD
+
+	TickerId id = 2001;
+	std::string genericTicks = "";
+    bool snapshot = false;
+	bool regulatorySnaphsot = false;
+    m_pClient->reqMktData(id, contract, genericTicks, snapshot, regulatorySnaphsot, TagValueListSPtr());
+}
+
 void TestCppClient::tickDataOperation()
 {
 	/*** Requesting real time market data ***/
