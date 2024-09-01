@@ -1,9 +1,9 @@
-﻿/* Copyright (C) 2019 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
+/* Copyright (C) 2019 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
 #include "StdAfx.h"
 
-#include "TestCppClient.h"
+#include "IBClient.h"
 
 #include "EClientSocket.h"
 #include "EPosixClientSocketPlatform.h"
@@ -43,7 +43,8 @@ const int SLEEP_BETWEEN_PINGS = 30; // seconds
 ///////////////////////////////////////////////////////////
 // member funcs
 //! [socket_init]
-TestCppClient::TestCppClient() :
+IBClient::IBClient(const std::string _api_host, const int _api_port, const int _client_id) :
+      api_host(_api_host), api_port(_api_port), client_id(_client_id),
       m_osSignal(2000)//2-seconds timeout
     , m_pClient(new EClientSocket(this, &m_osSignal))
 	, m_state(ST_CONNECT)
@@ -53,7 +54,7 @@ TestCppClient::TestCppClient() :
 {
 }
 //! [socket_init]
-TestCppClient::~TestCppClient()
+IBClient::~IBClient()
 {
 	// destroy the reader before the client
 	if( m_pReader )
@@ -62,15 +63,18 @@ TestCppClient::~TestCppClient()
 	delete m_pClient;
 }
 
-bool TestCppClient::connect(const char *host, int port, int clientId)
+bool IBClient::connect()
 {
+	auto host = this->api_host.c_str();
+	auto port = this->api_port;
+	auto clientId = this->client_id;
 	// trying to connect
 	printf( "Connecting to %s:%d clientId:%d\n", !( host && *host) ? "127.0.0.1" : host, port, clientId);
-	
+
 	//! [connect]
 	bool bRes = m_pClient->eConnect( host, port, clientId, m_extraAuth);
 	//! [connect]
-	
+
 	if (bRes) {
 		printf( "Connected to %s:%d clientId:%d\n", m_pClient->host().c_str(), m_pClient->port(), clientId);
 		//! [ereader]
@@ -84,24 +88,24 @@ bool TestCppClient::connect(const char *host, int port, int clientId)
 	return bRes;
 }
 
-void TestCppClient::disconnect() const
+void IBClient::disconnect() const
 {
 	m_pClient->eDisconnect();
 
 	printf ( "Disconnected\n");
 }
 
-bool TestCppClient::isConnected() const
+bool IBClient::isConnected() const
 {
 	return m_pClient->isConnected();
 }
 
-void TestCppClient::setConnectOptions(const std::string& connectOptions)
+void IBClient::setConnectOptions(const std::string& connectOptions)
 {
 	m_pClient->setConnectOptions(connectOptions);
 }
 
-void TestCppClient::processMessages()
+void IBClient::processMessages()
 {
 	time_t now = time(NULL);
 
@@ -339,13 +343,13 @@ void TestCppClient::processMessages()
 //////////////////////////////////////////////////////////////////
 // methods
 //! [connectack]
-void TestCppClient::connectAck() {
+void IBClient::connectAck() {
 	if (!m_extraAuth && m_pClient->asyncEConnect())
         m_pClient->startApi();
 }
 //! [connectack]
 
-void TestCppClient::reqCurrentTime()
+void IBClient::reqCurrentTime()
 {
 	printf( "Requesting Current Time\n");
 
@@ -357,38 +361,38 @@ void TestCppClient::reqCurrentTime()
 	m_pClient->reqCurrentTime();
 }
 
-void TestCppClient::pnlOperation()
+void IBClient::pnlOperation()
 {
 	//! [reqpnl]
     m_pClient->reqPnL(7001, "DUD00029", "");
 	//! [reqpnl]
-	
+
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
 	//! [cancelpnl]
     m_pClient->cancelPnL(7001);
-	//! [cancelpnl] 
-	
+	//! [cancelpnl]
+
     m_state = ST_PNL_ACK;
 }
 
-void TestCppClient::pnlSingleOperation()
+void IBClient::pnlSingleOperation()
 {
 	//! [reqpnlsingle]
     m_pClient->reqPnLSingle(7002, "DUD00029", "", 268084);
 	//! [reqpnlsingle]
-	
+
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
 	//! [cancelpnlsingle]
     m_pClient->cancelPnLSingle(7002);
 	//! [cancelpnlsingle]
-	
+
     m_state = ST_PNLSINGLE_ACK;
 }
 
 
-void TestCppClient::requestBTCMktData()
+void IBClient::requestBTCMktData()
 {
 
 	Contract contract;
@@ -406,7 +410,7 @@ void TestCppClient::requestBTCMktData()
 
 }
 
-void TestCppClient::tickDataOperation()
+void IBClient::tickDataOperation()
 {
 	/*** Requesting real time market data ***/
     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -424,7 +428,7 @@ void TestCppClient::tickDataOperation()
 	m_pClient->reqMktData(1013, ContractSamples::USStock(), "", false, true, TagValueListSPtr());
 	//! [regulatorysnapshot]
 	*/
-	
+
 	//! [reqmktdata_genticks]
 	//Requesting RTVolume (Time & Sales) and shortable generic ticks
 	m_pClient->reqMktData(1004, ContractSamples::USStockAtSmart(), "233,236", false, false, TagValueListSPtr());
@@ -447,7 +451,7 @@ void TestCppClient::tickDataOperation()
 	//Requesting data for an option contract will return the greek values
 	m_pClient->reqMktData(1013, ContractSamples::USOptionContract(), "", false, false, TagValueListSPtr());
 	//! [reqoptiondatagenticks]
-	
+
 	//! [reqfuturesopeninterest]
 	//Requesting data for a futures contract will return the futures open interest
 	m_pClient->reqMktData(1014, ContractSamples::SimpleFuture(), "mdoff,588", false, false, TagValueListSPtr());
@@ -493,7 +497,7 @@ void TestCppClient::tickDataOperation()
 	m_state = ST_TICKDATAOPERATION_ACK;
 }
 
-void TestCppClient::tickOptionComputationOperation()
+void IBClient::tickOptionComputationOperation()
 {
 	/*** Requesting real time market data ***/
 	std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -513,7 +517,7 @@ void TestCppClient::tickOptionComputationOperation()
 	m_state = ST_TICKOPTIONCOMPUTATIONOPERATION_ACK;
 }
 
-void TestCppClient::delayedTickDataOperation()
+void IBClient::delayedTickDataOperation()
 {
 	/*** Requesting delayed market data ***/
 
@@ -534,7 +538,7 @@ void TestCppClient::delayedTickDataOperation()
 	m_state = ST_DELAYEDTICKDATAOPERATION_ACK;
 }
 
-void TestCppClient::marketDepthOperations()
+void IBClient::marketDepthOperations()
 {
 	/*** Requesting the Deep Book ***/
 	//! [reqmarketdepth]
@@ -559,7 +563,7 @@ void TestCppClient::marketDepthOperations()
 	m_state = ST_MARKETDEPTHOPERATION_ACK;
 }
 
-void TestCppClient::realTimeBars()
+void IBClient::realTimeBars()
 {
 	/*** Requesting real time bars ***/
 	//! [reqrealtimebars]
@@ -574,7 +578,7 @@ void TestCppClient::realTimeBars()
 	m_state = ST_REALTIMEBARS_ACK;
 }
 
-void TestCppClient::marketDataType()
+void IBClient::marketDataType()
 {
 	//! [reqmarketdatatype]
 	/*** By default only real-time (1) market data is enabled
@@ -588,7 +592,7 @@ void TestCppClient::marketDataType()
 	m_state = ST_MARKETDATATYPE_ACK;
 }
 
-void TestCppClient::historicalDataRequests()
+void IBClient::historicalDataRequests()
 {
 	/*** Requesting historical data ***/
 	//! [reqhistoricaldata]
@@ -613,7 +617,7 @@ void TestCppClient::historicalDataRequests()
 	m_state = ST_HISTORICALDATAREQUESTS_ACK;
 }
 
-void TestCppClient::optionsOperations()
+void IBClient::optionsOperations()
 {
 	//! [reqsecdefoptparams]
 	m_pClient->reqSecDefOptParams(0, "IBM", "", "STK", 8314);
@@ -641,7 +645,7 @@ void TestCppClient::optionsOperations()
 	m_state = ST_OPTIONSOPERATIONS_ACK;
 }
 
-void TestCppClient::contractOperations()
+void IBClient::contractOperations()
 {
 	m_pClient->reqContractDetails(209, ContractSamples::EurGbpFx());
 	std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -669,7 +673,7 @@ void TestCppClient::contractOperations()
 	m_state = ST_CONTRACTOPERATION_ACK;
 }
 
-void TestCppClient::marketScanners()
+void IBClient::marketScanners()
 {
 	/*** Requesting all available parameters which can be used to build a scanner request ***/
 	//! [reqscannerparameters]
@@ -680,7 +684,7 @@ void TestCppClient::marketScanners()
 	/*** Triggering a scanner subscription ***/
 	//! [reqscannersubscription]
 	m_pClient->reqScannerSubscription(7001, ScannerSubscriptionSamples::HotUSStkByVolume(), TagValueListSPtr(), TagValueListSPtr());
-	
+
 	TagValueSPtr t1(new TagValue("usdMarketCapAbove", "10000"));
 	TagValueSPtr t2(new TagValue("optVolumeAbove", "1000"));
 	TagValueSPtr t3(new TagValue("usdMarketCapAbove", "100000000"));
@@ -691,7 +695,7 @@ void TestCppClient::marketScanners()
 	TagValues->push_back(t3);
 
 	m_pClient->reqScannerSubscription(7002, ScannerSubscriptionSamples::HotUSStkByVolume(), TagValueListSPtr(), TagValues); // requires TWS v973+
-	
+
 	//! [reqscannersubscription]
 
 	//! [reqcomplexscanner]
@@ -713,7 +717,7 @@ void TestCppClient::marketScanners()
 	m_state = ST_MARKETSCANNERS_ACK;
 }
 
-void TestCppClient::fundamentals()
+void IBClient::fundamentals()
 {
 	/*** Requesting Fundamentals ***/
 	//! [reqfundamentaldata]
@@ -729,7 +733,7 @@ void TestCppClient::fundamentals()
 	m_state = ST_FUNDAMENTALS_ACK;
 }
 
-void TestCppClient::bulletins()
+void IBClient::bulletins()
 {
 	/*** Requesting Interactive Broker's news bulletins */
 	//! [reqnewsbulletins]
@@ -744,7 +748,7 @@ void TestCppClient::bulletins()
 	m_state = ST_BULLETINS_ACK;
 }
 
-void TestCppClient::accountOperations()
+void IBClient::accountOperations()
 {
 	/*** Requesting managed accounts***/
 	//! [reqmanagedaccts]
@@ -810,7 +814,7 @@ void TestCppClient::accountOperations()
 	m_state = ST_ACCOUNTOPERATIONS_ACK;
 }
 
-void TestCppClient::orderOperations()
+void IBClient::orderOperations()
 {
 	/*** Requesting the next valid id ***/
 	//! [reqids]
@@ -854,11 +858,11 @@ void TestCppClient::orderOperations()
 	//m_pClient->placeOrder(m_orderId++, ContractSamples::USStock(), OrderSamples::SweepToFill("BUY", stringToDecimal("1"), 35));
 	//m_pClient->placeOrder(m_orderId++, ContractSamples::USStock(), OrderSamples::TrailingStop("SELL", stringToDecimal("1"), 0.5, 30));
 	//m_pClient->placeOrder(m_orderId++, ContractSamples::USStock(), OrderSamples::TrailingStopLimit("BUY", stringToDecimal("100"), 2, 5, 50));
-	
+
 	//! [place_midprice]
 	m_pClient->placeOrder(m_orderId++, ContractSamples::USStockAtSmart(), OrderSamples::Midprice("BUY", stringToDecimal("1"), 150));
 	//! [place_midprice]
-	
+
 	//! [place order with cashQty]
 	m_pClient->placeOrder(m_orderId++, ContractSamples::USStockAtSmart(), OrderSamples::LimitOrderWithCashQty("BUY", 111.11, 5000));
 	//! [place order with cashQty]
@@ -869,7 +873,7 @@ void TestCppClient::orderOperations()
 	//! [cancelorder]
 	m_pClient->cancelOrder(m_orderId-1, "");
 	//! [cancelorder]
-	
+
 	/*** Cancel all orders for all accounts ***/
 	//! [reqglobalcancel]
 	m_pClient->reqGlobalCancel();
@@ -911,7 +915,7 @@ void TestCppClient::orderOperations()
 	m_state = ST_ORDEROPERATIONS_ACK;
 }
 
-void TestCppClient::ocaSamples()
+void IBClient::ocaSamples()
 {
 	//OCA ORDER
 	//! [ocasubmit]
@@ -928,7 +932,7 @@ void TestCppClient::ocaSamples()
 	m_state = ST_OCASAMPLES_ACK;
 }
 
-void TestCppClient::conditionSamples()
+void IBClient::conditionSamples()
 {
 	//! [order_conditioning_activate]
 	Order lmt = OrderSamples::LimitOrder("BUY", 100, 10);
@@ -962,7 +966,7 @@ void TestCppClient::conditionSamples()
 	m_state = ST_CONDITIONSAMPLES_ACK;
 }
 
-void TestCppClient::bracketSample(){
+void IBClient::bracketSample(){
 	Order parent;
 	Order takeProfit;
 	Order stopLoss;
@@ -976,7 +980,7 @@ void TestCppClient::bracketSample(){
 	m_state = ST_BRACKETSAMPLES_ACK;
 }
 
-void TestCppClient::hedgeSample(){
+void IBClient::hedgeSample(){
 	//F Hedge order
 	//! [hedgesubmit]
 	//Parent order on a contract which currency differs from your base currency
@@ -994,7 +998,7 @@ void TestCppClient::hedgeSample(){
 	m_state = ST_HEDGESAMPLES_ACK;
 }
 
-void TestCppClient::testAlgoSamples(){
+void IBClient::testAlgoSamples(){
 	//! [algo_base_order]
 	Order baseOrder = OrderSamples::LimitOrder("BUY", 1000, 1);
 	//! [algo_base_order]
@@ -1044,22 +1048,22 @@ void TestCppClient::testAlgoSamples(){
     AvailableAlgoParams::FillClosePriceParams(baseOrder, 0.5, "Neutral", "12:00:00 US/Eastern", true);
     m_pClient->placeOrder(m_orderId++, ContractSamples::USStockAtSmart(), baseOrder);
     //! [closepx]
-    
+
     //! [pctvol]
     AvailableAlgoParams::FillPctVolParams(baseOrder, 0.5, "12:00:00 US/Eastern", "14:00:00 US/Eastern", true);
     m_pClient->placeOrder(m_orderId++, ContractSamples::USStockAtSmart(), baseOrder);
-    //! [pctvol]               
-    
+    //! [pctvol]
+
     //! [pctvolpx]
     AvailableAlgoParams::FillPriceVariantPctVolParams(baseOrder, 0.1, 0.05, 0.01, 0.2, "12:00:00 US/Eastern", "14:00:00 US/Eastern", true);
     m_pClient->placeOrder(m_orderId++, ContractSamples::USStockAtSmart(), baseOrder);
     //! [pctvolpx]
-    
+
     //! [pctvolsz]
     AvailableAlgoParams::FillSizeVariantPctVolParams(baseOrder, 0.2, 0.4, "12:00:00 US/Eastern", "14:00:00 US/Eastern", true);
     m_pClient->placeOrder(m_orderId++, ContractSamples::USStockAtSmart(), baseOrder);
     //! [pctvolsz]
-    
+
     //! [pctvoltm]
     AvailableAlgoParams::FillTimeVariantPctVolParams(baseOrder, 0.2, 0.4, "12:00:00 US/Eastern", "14:00:00 US/Eastern", true);
     m_pClient->placeOrder(m_orderId++, ContractSamples::USStockAtSmart(), baseOrder);
@@ -1074,11 +1078,11 @@ void TestCppClient::testAlgoSamples(){
 	AvailableAlgoParams::FillCSFBInlineParams(baseOrder, "10:00:00 US/Eastern", "16:00:00 US/Eastern", "Patient", 10, 20, 100, "Default", false, 40, 100, 100, 35);
 	m_pClient->placeOrder(m_orderId++, ContractSamples::CSFBContract(), baseOrder);
 	//! [csfb_inline_algo]
-	
+
 	m_state = ST_TESTALGOSAMPLES_ACK;
 }
 
-void TestCppClient::financialAdvisorOrderSamples()
+void IBClient::financialAdvisorOrderSamples()
 {
 	//! [faorderoneaccount]
 	Order faOrderOneAccount = OrderSamples::MarketOrder("BUY", 100);
@@ -1124,7 +1128,7 @@ void TestCppClient::financialAdvisorOrderSamples()
 	m_state = ST_FAORDERSAMPLES_ACK;
 }
 
-void TestCppClient::financialAdvisorOperations()
+void IBClient::financialAdvisorOperations()
 {
 	/*** Requesting FA information ***/
 	//! [requestfaaliases]
@@ -1163,7 +1167,7 @@ void TestCppClient::financialAdvisorOperations()
 	m_state = ST_FAOPERATIONS_ACK;
 }
 
-void TestCppClient::testDisplayGroups(){
+void IBClient::testDisplayGroups(){
 	//! [querydisplaygroups]
 	m_pClient->queryDisplayGroups(9001);
 	//! [querydisplaygroups]
@@ -1189,7 +1193,7 @@ void TestCppClient::testDisplayGroups(){
 	m_state = ST_TICKDATAOPERATION_ACK;
 }
 
-void TestCppClient::miscelaneous()
+void IBClient::miscelaneous()
 {
 	/*** Request TWS' current time ***/
 	m_pClient->reqCurrentTime();
@@ -1199,7 +1203,7 @@ void TestCppClient::miscelaneous()
 	m_state = ST_MISCELANEOUS_ACK;
 }
 
-void TestCppClient::reqFamilyCodes()
+void IBClient::reqFamilyCodes()
 {
 	/*** Request TWS' family codes ***/
 	//! [reqfamilycodes]
@@ -1209,7 +1213,7 @@ void TestCppClient::reqFamilyCodes()
 	m_state = ST_FAMILYCODES_ACK;
 }
 
-void TestCppClient::reqMatchingSymbols()
+void IBClient::reqMatchingSymbols()
 {
 	/*** Request TWS' mathing symbols ***/
 	//! [reqmatchingsymbols]
@@ -1218,7 +1222,7 @@ void TestCppClient::reqMatchingSymbols()
 	m_state = ST_SYMBOLSAMPLES_ACK;
 }
 
-void TestCppClient::reqMktDepthExchanges()
+void IBClient::reqMktDepthExchanges()
 {
 	/*** Request TWS' market depth exchanges ***/
 	//! [reqMktDepthExchanges]
@@ -1228,7 +1232,7 @@ void TestCppClient::reqMktDepthExchanges()
 	m_state = ST_REQMKTDEPTHEXCHANGES_ACK;
 }
 
-void TestCppClient::reqNewsTicks()
+void IBClient::reqNewsTicks()
 {
 	//! [reqmktdata_ticknews]
 	m_pClient->reqMktData(12001, ContractSamples::USStockAtSmart(), "mdoff,292", false, false, TagValueListSPtr());
@@ -1243,7 +1247,7 @@ void TestCppClient::reqNewsTicks()
 	m_state = ST_REQNEWSTICKS_ACK;
 }
 
-void TestCppClient::reqSmartComponents()
+void IBClient::reqSmartComponents()
 {
 	static bool bFirstRun = true;
 
@@ -1265,7 +1269,7 @@ void TestCppClient::reqSmartComponents()
 	}
 }
 
-void TestCppClient::reqNewsProviders()
+void IBClient::reqNewsProviders()
 {
 	/*** Request TWS' news providers ***/
 	//! [reqNewsProviders]
@@ -1275,7 +1279,7 @@ void TestCppClient::reqNewsProviders()
 	m_state = ST_NEWSPROVIDERS_ACK;
 }
 
-void TestCppClient::reqNewsArticle()
+void IBClient::reqNewsArticle()
 {
 	/*** Request TWS' news article ***/
 	//! [reqNewsArticle]
@@ -1287,7 +1291,7 @@ void TestCppClient::reqNewsArticle()
 	m_state = ST_REQNEWSARTICLE_ACK;
 }
 
-void TestCppClient::reqHistoricalNews(){
+void IBClient::reqHistoricalNews(){
 
 	//! [reqHistoricalNews]
 	TagValueList* list = new TagValueList();
@@ -1301,19 +1305,19 @@ void TestCppClient::reqHistoricalNews(){
 }
 
 
-void TestCppClient::reqHeadTimestamp() {
+void IBClient::reqHeadTimestamp() {
 	//! [reqHeadTimeStamp]
 	m_pClient->reqHeadTimestamp(14001, ContractSamples::EurGbpFx(), "MIDPOINT", 1, 1);
-	//! [reqHeadTimeStamp]	
+	//! [reqHeadTimeStamp]
 	std::this_thread::sleep_for(std::chrono::seconds(1));
 	//! [cancelHeadTimestamp]
 	m_pClient->cancelHeadTimestamp(14001);
 	//! [cancelHeadTimestamp]
-	
+
 	m_state = ST_REQHEADTIMESTAMP_ACK;
 }
 
-void TestCppClient::reqHistogramData() {
+void IBClient::reqHistogramData() {
 	//! [reqHistogramData]
 	m_pClient->reqHistogramData(15001, ContractSamples::IBMUSStockAtSmart(), false, "1 weeks");
 	//! [reqHistogramData]
@@ -1324,7 +1328,7 @@ void TestCppClient::reqHistogramData() {
 	m_state = ST_REQHISTOGRAMDATA_ACK;
 }
 
-void TestCppClient::rerouteCFDOperations()
+void IBClient::rerouteCFDOperations()
 {
     //! [reqmktdatacfd]
 	m_pClient->reqMktData(16001, ContractSamples::USStockCFD(), "", false, false, TagValueListSPtr());
@@ -1347,7 +1351,7 @@ void TestCppClient::rerouteCFDOperations()
 	m_state = ST_REROUTECFD_ACK;
 }
 
-void TestCppClient::marketRuleOperations()
+void IBClient::marketRuleOperations()
 {
 	m_pClient->reqContractDetails(17001, ContractSamples::IBMBond());
 	m_pClient->reqContractDetails(17002, ContractSamples::IBKRStk());
@@ -1363,7 +1367,7 @@ void TestCppClient::marketRuleOperations()
 	m_state = ST_MARKETRULE_ACK;
 }
 
-void TestCppClient::continuousFuturesOperations()
+void IBClient::continuousFuturesOperations()
 {
 	m_pClient->reqContractDetails(18001, ContractSamples::ContFut());
 
@@ -1386,7 +1390,7 @@ void TestCppClient::continuousFuturesOperations()
 	m_state = ST_CONTFUT_ACK;
 }
 
-void TestCppClient::reqHistoricalTicks() 
+void IBClient::reqHistoricalTicks()
 {
 	//! [reqhistoricalticks]
     m_pClient->reqHistoricalTicks(19001, ContractSamples::IBMUSStockAtSmart(), "20170621 09:38:33 US/Eastern", "", 10, "BID_ASK", 1, true, TagValueListSPtr());
@@ -1396,10 +1400,10 @@ void TestCppClient::reqHistoricalTicks()
     m_state = ST_REQHISTORICALTICKS_ACK;
 }
 
-void TestCppClient::reqTickByTickData() 
+void IBClient::reqTickByTickData()
 {
     /*** Requesting tick-by-tick data (only refresh) ***/
-    
+
     m_pClient->reqTickByTickData(20001, ContractSamples::EuropeanStock(), "Last", 0, false);
     m_pClient->reqTickByTickData(20002, ContractSamples::EuropeanStock(), "AllLast", 0, false);
     m_pClient->reqTickByTickData(20003, ContractSamples::EuropeanStock(), "BidAsk", 0, true);
@@ -1413,7 +1417,7 @@ void TestCppClient::reqTickByTickData()
     m_pClient->cancelTickByTickData(20003);
     m_pClient->cancelTickByTickData(20004);
     //! [canceltickbytick]
-	
+
     /*** Requesting tick-by-tick data (historical + refresh) ***/
     //! [reqtickbytick]
     m_pClient->reqTickByTickData(20005, ContractSamples::EuropeanStock(), "Last", 10, false);
@@ -1421,7 +1425,7 @@ void TestCppClient::reqTickByTickData()
     m_pClient->reqTickByTickData(20007, ContractSamples::EuropeanStock(), "BidAsk", 10, false);
     m_pClient->reqTickByTickData(20008, ContractSamples::EurGbpFx(), "MidPoint", 10, true);
 	//! [reqtickbytick]
-	
+
     std::this_thread::sleep_for(std::chrono::seconds(10));
 
     m_pClient->cancelTickByTickData(20005);
@@ -1432,7 +1436,7 @@ void TestCppClient::reqTickByTickData()
     m_state = ST_REQTICKBYTICKDATA_ACK;
 }
 
-void TestCppClient::whatIfSamples()
+void IBClient::whatIfSamples()
 {
     /*** Placing waht-if order ***/
     //! [whatiforder]
@@ -1442,20 +1446,20 @@ void TestCppClient::whatIfSamples()
     m_state = ST_WHATIFSAMPLES_ACK;
 }
 
-void TestCppClient::ibkratsSample(){
+void IBClient::ibkratsSample(){
 	//! [ibkratssubmit]
 	Order ibkratsOrder = OrderSamples::LimitIBKRATS("BUY", 100, 330);
 	m_pClient->placeOrder(m_orderId++, ContractSamples::IBKRATSContract(), ibkratsOrder);
 	//! [ibkratssubmit]
-	
+
 	m_state = ST_IBKRATSSAMPLE_ACK;
 }
 
-void TestCppClient::wshCalendarOperations() {
+void IBClient::wshCalendarOperations() {
 	//! [reqmetadata]
 	m_pClient->reqWshMetaData(30001);
 	//! [reqmetadata]
-	
+
 	std::this_thread::sleep_for(std::chrono::seconds(10));
 
 	m_pClient->cancelWshMetaData(30001);
@@ -1479,21 +1483,21 @@ void TestCppClient::wshCalendarOperations() {
 }
 
 //! [nextvalidid]
-void TestCppClient::nextValidId( OrderId orderId)
+void IBClient::nextValidId( OrderId orderId)
 {
 	printf("Next Valid Id: %ld\n", orderId);
 	m_orderId = orderId;
 	//! [nextvalidid]
 
-    //m_state = ST_TICKOPTIONCOMPUTATIONOPERATION; 
-    //m_state = ST_TICKDATAOPERATION; 
+    //m_state = ST_TICKOPTIONCOMPUTATIONOPERATION;
+    //m_state = ST_TICKDATAOPERATION;
     //m_state = ST_OPTIONSOPERATIONS;
-    //m_state = ST_REQTICKBYTICKDATA; 
-    //m_state = ST_REQHISTORICALTICKS; 
-    //m_state = ST_CONTFUT; 
-    //m_state = ST_PNLSINGLE; 
-    //m_state = ST_PNL; 
-	//m_state = ST_DELAYEDTICKDATAOPERATION; 
+    //m_state = ST_REQTICKBYTICKDATA;
+    //m_state = ST_REQHISTORICALTICKS;
+    //m_state = ST_CONTFUT;
+    //m_state = ST_PNLSINGLE;
+    //m_state = ST_PNL;
+	//m_state = ST_DELAYEDTICKDATAOPERATION;
 	//m_state = ST_MARKETDEPTHOPERATION;
 	//m_state = ST_REALTIMEBARS;
 	//m_state = ST_MARKETDATATYPE;
@@ -1531,7 +1535,7 @@ void TestCppClient::nextValidId( OrderId orderId)
 }
 
 
-void TestCppClient::currentTime( long time)
+void IBClient::currentTime( long time)
 {
 	if ( m_state == ST_PING_ACK) {
 		time_t t = ( time_t)time;
@@ -1546,7 +1550,7 @@ void TestCppClient::currentTime( long time)
 }
 
 //! [error]
-void TestCppClient::error(int id, int errorCode, const std::string& errorString, const std::string& advancedOrderRejectJson)
+void IBClient::error(int id, int errorCode, const std::string& errorString, const std::string& advancedOrderRejectJson)
 {
     if (!advancedOrderRejectJson.empty()) {
         printf("Error. Id: %d, Code: %d, Msg: %s, AdvancedOrderRejectJson: %s\n", id, errorCode, errorString.c_str(), advancedOrderRejectJson.c_str());
@@ -1557,116 +1561,116 @@ void TestCppClient::error(int id, int errorCode, const std::string& errorString,
 //! [error]
 
 //! [tickprice]
-void TestCppClient::tickPrice( TickerId tickerId, TickType field, double price, const TickAttrib& attribs) {
-    printf( "Tick Price. Ticker Id: %ld, Field: %s, Price: %s, CanAutoExecute: %d, PastLimit: %d, PreOpen: %d\n", 
+void IBClient::tickPrice( TickerId tickerId, TickType field, double price, const TickAttrib& attribs) {
+    printf( "Tick Price. Ticker Id: %ld, Field: %s, Price: %s, CanAutoExecute: %d, PastLimit: %d, PreOpen: %d\n",
 	                      tickerId, tickTypeToString(field).c_str(), Utils::doubleMaxString(price).c_str(), attribs.canAutoExecute, attribs.pastLimit, attribs.preOpen);
 }
 //! [tickprice]
 
 //! [ticksize]
-void TestCppClient::tickSize( TickerId tickerId, TickType field, Decimal size) {
-	printf( "Tick Size. Ticker Id: %ld, Field: %s, Size: %s\n", 
+void IBClient::tickSize( TickerId tickerId, TickType field, Decimal size) {
+	printf( "Tick Size. Ticker Id: %ld, Field: %s, Size: %s\n",
 	                       tickerId, tickTypeToString(field).c_str(), decimalStringToDisplay(size).c_str());
 }
 //! [ticksize]
 
 //! [tickoptioncomputation]
-void TestCppClient::tickOptionComputation( TickerId tickerId, TickType tickType, int tickAttrib, double impliedVol, double delta,
+void IBClient::tickOptionComputation( TickerId tickerId, TickType tickType, int tickAttrib, double impliedVol, double delta,
                                           double optPrice, double pvDividend,
                                           double gamma, double vega, double theta, double undPrice) {
-    printf( "TickOptionComputation. Ticker Id: %ld, Type: %d, TickAttrib: %s, ImpliedVolatility: %s, Delta: %s, OptionPrice: %s, pvDividend: %s, Gamma: %s, Vega: %s, Theta: %s, Underlying Price: %s\n", 
-        tickerId, (int)tickType, Utils::intMaxString(tickAttrib).c_str(), Utils::doubleMaxString(impliedVol).c_str(), Utils::doubleMaxString(delta).c_str(), Utils::doubleMaxString(optPrice).c_str(), 
+    printf( "TickOptionComputation. Ticker Id: %ld, Type: %d, TickAttrib: %s, ImpliedVolatility: %s, Delta: %s, OptionPrice: %s, pvDividend: %s, Gamma: %s, Vega: %s, Theta: %s, Underlying Price: %s\n",
+        tickerId, (int)tickType, Utils::intMaxString(tickAttrib).c_str(), Utils::doubleMaxString(impliedVol).c_str(), Utils::doubleMaxString(delta).c_str(), Utils::doubleMaxString(optPrice).c_str(),
         Utils::doubleMaxString(pvDividend).c_str(), Utils::doubleMaxString(gamma).c_str(), Utils::doubleMaxString(vega).c_str(), Utils::doubleMaxString(theta).c_str(), Utils::doubleMaxString(undPrice).c_str());
 }
 //! [tickoptioncomputation]
 
 //! [tickgeneric]
-void TestCppClient::tickGeneric(TickerId tickerId, TickType tickType, double value) {
-    printf( "Tick Generic. Ticker Id: %ld, Type: %s, Value: %s\n", 
+void IBClient::tickGeneric(TickerId tickerId, TickType tickType, double value) {
+    printf( "Tick Generic. Ticker Id: %ld, Type: %s, Value: %s\n",
 	tickerId,  tickTypeToString(tickType).c_str(), Utils::doubleMaxString(value).c_str());
 }
 //! [tickgeneric]
 
 //! [tickstring]
-void TestCppClient::tickString(TickerId tickerId, TickType tickType, const std::string& value) {
+void IBClient::tickString(TickerId tickerId, TickType tickType, const std::string& value) {
 	printf( "Tick String. Ticker Id: %ld, Type: %s, Value: %s\n",
 	            tickerId,  tickTypeToString(tickType).c_str(), value.c_str());
 }
 //! [tickstring]
 
-void TestCppClient::tickEFP(TickerId tickerId, TickType tickType, double basisPoints, const std::string& formattedBasisPoints,
+void IBClient::tickEFP(TickerId tickerId, TickType tickType, double basisPoints, const std::string& formattedBasisPoints,
                             double totalDividends, int holdDays, const std::string& futureLastTradeDate, double dividendImpact, double dividendsToLastTradeDate) {
-    printf( "TickEFP. %ld, Type: %d, BasisPoints: %s, FormattedBasisPoints: %s, Total Dividends: %s, HoldDays: %s, Future Last Trade Date: %s, Dividend Impact: %s, Dividends To Last Trade Date: %s\n", 
-        tickerId, (int)tickType, Utils::doubleMaxString(basisPoints).c_str(), formattedBasisPoints.c_str(), Utils::doubleMaxString(totalDividends).c_str(), Utils::intMaxString(holdDays).c_str(), 
+    printf( "TickEFP. %ld, Type: %d, BasisPoints: %s, FormattedBasisPoints: %s, Total Dividends: %s, HoldDays: %s, Future Last Trade Date: %s, Dividend Impact: %s, Dividends To Last Trade Date: %s\n",
+        tickerId, (int)tickType, Utils::doubleMaxString(basisPoints).c_str(), formattedBasisPoints.c_str(), Utils::doubleMaxString(totalDividends).c_str(), Utils::intMaxString(holdDays).c_str(),
         futureLastTradeDate.c_str(), Utils::doubleMaxString(dividendImpact).c_str(), Utils::doubleMaxString(dividendsToLastTradeDate).c_str());
 }
 
 //! [orderstatus]
-void TestCppClient::orderStatus(OrderId orderId, const std::string& status, Decimal filled,
+void IBClient::orderStatus(OrderId orderId, const std::string& status, Decimal filled,
 		Decimal remaining, double avgFillPrice, int permId, int parentId,
 		double lastFillPrice, int clientId, const std::string& whyHeld, double mktCapPrice){
-    printf("OrderStatus. Id: %ld, Status: %s, Filled: %s, Remaining: %s, AvgFillPrice: %s, PermId: %s, LastFillPrice: %s, ClientId: %s, WhyHeld: %s, MktCapPrice: %s\n", 
-        orderId, status.c_str(), decimalStringToDisplay(filled).c_str(), decimalStringToDisplay(remaining).c_str(), Utils::doubleMaxString(avgFillPrice).c_str(), Utils::intMaxString(permId).c_str(), 
+    printf("OrderStatus. Id: %ld, Status: %s, Filled: %s, Remaining: %s, AvgFillPrice: %s, PermId: %s, LastFillPrice: %s, ClientId: %s, WhyHeld: %s, MktCapPrice: %s\n",
+        orderId, status.c_str(), decimalStringToDisplay(filled).c_str(), decimalStringToDisplay(remaining).c_str(), Utils::doubleMaxString(avgFillPrice).c_str(), Utils::intMaxString(permId).c_str(),
         Utils::doubleMaxString(lastFillPrice).c_str(), Utils::intMaxString(clientId).c_str(), whyHeld.c_str(), Utils::doubleMaxString(mktCapPrice).c_str());
 }
 //! [orderstatus]
 
 //! [openorder]
-void TestCppClient::openOrder( OrderId orderId, const Contract& contract, const Order& order, const OrderState& orderState) {
+void IBClient::openOrder( OrderId orderId, const Contract& contract, const Order& order, const OrderState& orderState) {
     printf( "OpenOrder. PermId: %s, ClientId: %s, OrderId: %s, Account: %s, Symbol: %s, SecType: %s, Exchange: %s:, Action: %s, OrderType:%s, TotalQty: %s, CashQty: %s, "
-        "LmtPrice: %s, AuxPrice: %s, Status: %s, MinTradeQty: %s, MinCompeteSize: %s, CompeteAgainstBestOffset: %s, MidOffsetAtWhole: %s, MidOffsetAtHalf: %s\n", 
-        Utils::intMaxString(order.permId).c_str(), Utils::longMaxString(order.clientId).c_str(), Utils::longMaxString(orderId).c_str(), order.account.c_str(), contract.symbol.c_str(), 
-        contract.secType.c_str(), contract.exchange.c_str(), order.action.c_str(), order.orderType.c_str(), decimalStringToDisplay(order.totalQuantity).c_str(), 
+        "LmtPrice: %s, AuxPrice: %s, Status: %s, MinTradeQty: %s, MinCompeteSize: %s, CompeteAgainstBestOffset: %s, MidOffsetAtWhole: %s, MidOffsetAtHalf: %s\n",
+        Utils::intMaxString(order.permId).c_str(), Utils::longMaxString(order.clientId).c_str(), Utils::longMaxString(orderId).c_str(), order.account.c_str(), contract.symbol.c_str(),
+        contract.secType.c_str(), contract.exchange.c_str(), order.action.c_str(), order.orderType.c_str(), decimalStringToDisplay(order.totalQuantity).c_str(),
         Utils::doubleMaxString(order.cashQty).c_str(), Utils::doubleMaxString(order.lmtPrice).c_str(), Utils::doubleMaxString(order.auxPrice).c_str(), orderState.status.c_str(),
-        Utils::intMaxString(order.minTradeQty).c_str(), Utils::intMaxString(order.minCompeteSize).c_str(), 
+        Utils::intMaxString(order.minTradeQty).c_str(), Utils::intMaxString(order.minCompeteSize).c_str(),
         order.competeAgainstBestOffset == COMPETE_AGAINST_BEST_OFFSET_UP_TO_MID ? "UpToMid" : Utils::doubleMaxString(order.competeAgainstBestOffset).c_str(),
         Utils::doubleMaxString(order.midOffsetAtWhole).c_str(), Utils::doubleMaxString(order.midOffsetAtHalf).c_str());
 }
 //! [openorder]
 
 //! [openorderend]
-void TestCppClient::openOrderEnd() {
+void IBClient::openOrderEnd() {
 	printf( "OpenOrderEnd\n");
 }
 //! [openorderend]
 
-void TestCppClient::winError( const std::string& str, int lastError) {}
-void TestCppClient::connectionClosed() {
+void IBClient::winError( const std::string& str, int lastError) {}
+void IBClient::connectionClosed() {
 	printf( "Connection Closed\n");
 }
 
 //! [updateaccountvalue]
-void TestCppClient::updateAccountValue(const std::string& key, const std::string& val,
+void IBClient::updateAccountValue(const std::string& key, const std::string& val,
                                        const std::string& currency, const std::string& accountName) {
 	printf("UpdateAccountValue. Key: %s, Value: %s, Currency: %s, Account Name: %s\n", key.c_str(), val.c_str(), currency.c_str(), accountName.c_str());
 }
 //! [updateaccountvalue]
 
 //! [updateportfolio]
-void TestCppClient::updatePortfolio(const Contract& contract, Decimal position,
+void IBClient::updatePortfolio(const Contract& contract, Decimal position,
                                     double marketPrice, double marketValue, double averageCost,
                                     double unrealizedPNL, double realizedPNL, const std::string& accountName){
-    printf("UpdatePortfolio. %s, %s @ %s: Position: %s, MarketPrice: %s, MarketValue: %s, AverageCost: %s, UnrealizedPNL: %s, RealizedPNL: %s, AccountName: %s\n", 
-        (contract.symbol).c_str(), (contract.secType).c_str(), (contract.primaryExchange).c_str(), decimalStringToDisplay(position).c_str(), 
-        Utils::doubleMaxString(marketPrice).c_str(), Utils::doubleMaxString(marketValue).c_str(), Utils::doubleMaxString(averageCost).c_str(), 
+    printf("UpdatePortfolio. %s, %s @ %s: Position: %s, MarketPrice: %s, MarketValue: %s, AverageCost: %s, UnrealizedPNL: %s, RealizedPNL: %s, AccountName: %s\n",
+        (contract.symbol).c_str(), (contract.secType).c_str(), (contract.primaryExchange).c_str(), decimalStringToDisplay(position).c_str(),
+        Utils::doubleMaxString(marketPrice).c_str(), Utils::doubleMaxString(marketValue).c_str(), Utils::doubleMaxString(averageCost).c_str(),
         Utils::doubleMaxString(unrealizedPNL).c_str(), Utils::doubleMaxString(realizedPNL).c_str(), accountName.c_str());
 }
 //! [updateportfolio]
 
 //! [updateaccounttime]
-void TestCppClient::updateAccountTime(const std::string& timeStamp) {
+void IBClient::updateAccountTime(const std::string& timeStamp) {
 	printf( "UpdateAccountTime. Time: %s\n", timeStamp.c_str());
 }
 //! [updateaccounttime]
 
 //! [accountdownloadend]
-void TestCppClient::accountDownloadEnd(const std::string& accountName) {
+void IBClient::accountDownloadEnd(const std::string& accountName) {
 	printf( "Account download finished: %s\n", accountName.c_str());
 }
 //! [accountdownloadend]
 
 //! [contractdetails]
-void TestCppClient::contractDetails( int reqId, const ContractDetails& contractDetails) {
+void IBClient::contractDetails( int reqId, const ContractDetails& contractDetails) {
 	printf( "ContractDetails begin. ReqId: %d\n", reqId);
 	printContractMsg(contractDetails.contract);
 	printContractDetailsMsg(contractDetails);
@@ -1675,14 +1679,14 @@ void TestCppClient::contractDetails( int reqId, const ContractDetails& contractD
 //! [contractdetails]
 
 //! [bondcontractdetails]
-void TestCppClient::bondContractDetails( int reqId, const ContractDetails& contractDetails) {
+void IBClient::bondContractDetails( int reqId, const ContractDetails& contractDetails) {
 	printf( "BondContractDetails begin. ReqId: %d\n", reqId);
 	printBondContractDetailsMsg(contractDetails);
 	printf( "BondContractDetails end. ReqId: %d\n", reqId);
 }
 //! [bondcontractdetails]
 
-void TestCppClient::printContractMsg(const Contract& contract) {
+void IBClient::printContractMsg(const Contract& contract) {
 	printf("\tConId: %ld\n", contract.conId);
 	printf("\tSymbol: %s\n", contract.symbol.c_str());
 	printf("\tSecType: %s\n", contract.secType.c_str());
@@ -1697,7 +1701,7 @@ void TestCppClient::printContractMsg(const Contract& contract) {
 	printf("\tTradingClass: %s\n", contract.tradingClass.c_str());
 }
 
-void TestCppClient::printContractDetailsMsg(const ContractDetails& contractDetails) {
+void IBClient::printContractDetailsMsg(const ContractDetails& contractDetails) {
 	printf("\tMarketName: %s\n", contractDetails.marketName.c_str());
 	printf("\tMinTick: %s\n", Utils::doubleMaxString(contractDetails.minTick).c_str());
 	printf("\tPriceMagnifier: %s\n", Utils::longMaxString(contractDetails.priceMagnifier).c_str());
@@ -1727,7 +1731,7 @@ void TestCppClient::printContractDetailsMsg(const ContractDetails& contractDetai
 	printContractDetailsSecIdList(contractDetails.secIdList);
 }
 
-void TestCppClient::printContractDetailsSecIdList(const TagValueListSPtr &secIdList) {
+void IBClient::printContractDetailsSecIdList(const TagValueListSPtr &secIdList) {
 	const int secIdListCount = secIdList.get() ? secIdList->size() : 0;
 	if (secIdListCount > 0) {
 		printf("\tSecIdList: {");
@@ -1739,7 +1743,7 @@ void TestCppClient::printContractDetailsSecIdList(const TagValueListSPtr &secIdL
 	}
 }
 
-void TestCppClient::printBondContractDetailsMsg(const ContractDetails& contractDetails) {
+void IBClient::printBondContractDetailsMsg(const ContractDetails& contractDetails) {
 	printf("\tSymbol: %s\n", contractDetails.contract.symbol.c_str());
 	printf("\tSecType: %s\n", contractDetails.contract.secType.c_str());
 	printf("\tCusip: %s\n", contractDetails.cusip.c_str());
@@ -1779,79 +1783,79 @@ void TestCppClient::printBondContractDetailsMsg(const ContractDetails& contractD
 }
 
 //! [contractdetailsend]
-void TestCppClient::contractDetailsEnd( int reqId) {
+void IBClient::contractDetailsEnd( int reqId) {
 	printf( "ContractDetailsEnd. %d\n", reqId);
 }
 //! [contractdetailsend]
 
 //! [execdetails]
-void TestCppClient::execDetails( int reqId, const Contract& contract, const Execution& execution) {
+void IBClient::execDetails( int reqId, const Contract& contract, const Execution& execution) {
 	printf( "ExecDetails. ReqId: %d - %s, %s, %s - %s, %s, %s, %s, %s\n", reqId, contract.symbol.c_str(), contract.secType.c_str(), contract.currency.c_str(), execution.execId.c_str(), Utils::longMaxString(execution.orderId).c_str(), decimalStringToDisplay(execution.shares).c_str(), decimalStringToDisplay(execution.cumQty).c_str(), Utils::intMaxString(execution.lastLiquidity).c_str());
 }
 //! [execdetails]
 
 //! [execdetailsend]
-void TestCppClient::execDetailsEnd( int reqId) {
+void IBClient::execDetailsEnd( int reqId) {
 	printf( "ExecDetailsEnd. %d\n", reqId);
 }
 //! [execdetailsend]
 
 //! [updatemktdepth]
-void TestCppClient::updateMktDepth(TickerId id, int position, int operation, int side,
+void IBClient::updateMktDepth(TickerId id, int position, int operation, int side,
                                    double price, Decimal size) {
-    printf( "UpdateMarketDepth. %ld - Position: %s, Operation: %d, Side: %d, Price: %s, Size: %s\n", id, Utils::intMaxString(position).c_str(), operation, side, 
+    printf( "UpdateMarketDepth. %ld - Position: %s, Operation: %d, Side: %d, Price: %s, Size: %s\n", id, Utils::intMaxString(position).c_str(), operation, side,
         Utils::doubleMaxString(price).c_str(), decimalStringToDisplay(size).c_str());
 }
 //! [updatemktdepth]
 
 //! [updatemktdepthl2]
-void TestCppClient::updateMktDepthL2(TickerId id, int position, const std::string& marketMaker, int operation,
+void IBClient::updateMktDepthL2(TickerId id, int position, const std::string& marketMaker, int operation,
                                      int side, double price, Decimal size, bool isSmartDepth) {
-    printf( "UpdateMarketDepthL2. %ld - Position: %s, Operation: %d, Side: %d, Price: %s, Size: %s, isSmartDepth: %d\n", id, Utils::intMaxString(position).c_str(), operation, side, 
+    printf( "UpdateMarketDepthL2. %ld - Position: %s, Operation: %d, Side: %d, Price: %s, Size: %s, isSmartDepth: %d\n", id, Utils::intMaxString(position).c_str(), operation, side,
         Utils::doubleMaxString(price).c_str(), decimalStringToDisplay(size).c_str(), isSmartDepth);
 }
 //! [updatemktdepthl2]
 
 //! [updatenewsbulletin]
-void TestCppClient::updateNewsBulletin(int msgId, int msgType, const std::string& newsMessage, const std::string& originExch) {
+void IBClient::updateNewsBulletin(int msgId, int msgType, const std::string& newsMessage, const std::string& originExch) {
 	printf( "News Bulletins. %d - Type: %d, Message: %s, Exchange of Origin: %s\n", msgId, msgType, newsMessage.c_str(), originExch.c_str());
 }
 //! [updatenewsbulletin]
 
 //! [managedaccounts]
-void TestCppClient::managedAccounts( const std::string& accountsList) {
+void IBClient::managedAccounts( const std::string& accountsList) {
 	printf( "Account List: %s\n", accountsList.c_str());
 }
 //! [managedaccounts]
 
 //! [receivefa]
-void TestCppClient::receiveFA(faDataType pFaDataType, const std::string& cxml) {
+void IBClient::receiveFA(faDataType pFaDataType, const std::string& cxml) {
 	std::cout << "Receiving FA: " << (int)pFaDataType << std::endl << cxml << std::endl;
 }
 //! [receivefa]
 
 //! [historicaldata]
-void TestCppClient::historicalData(TickerId reqId, const Bar& bar) {
-    printf( "HistoricalData. ReqId: %ld - Date: %s, Open: %s, High: %s, Low: %s, Close: %s, Volume: %s, Count: %s, WAP: %s\n", reqId, bar.time.c_str(), 
-        Utils::doubleMaxString(bar.open).c_str(), Utils::doubleMaxString(bar.high).c_str(), Utils::doubleMaxString(bar.low).c_str(), Utils::doubleMaxString(bar.close).c_str(), 
+void IBClient::historicalData(TickerId reqId, const Bar& bar) {
+    printf( "HistoricalData. ReqId: %ld - Date: %s, Open: %s, High: %s, Low: %s, Close: %s, Volume: %s, Count: %s, WAP: %s\n", reqId, bar.time.c_str(),
+        Utils::doubleMaxString(bar.open).c_str(), Utils::doubleMaxString(bar.high).c_str(), Utils::doubleMaxString(bar.low).c_str(), Utils::doubleMaxString(bar.close).c_str(),
         decimalStringToDisplay(bar.volume).c_str(), Utils::intMaxString(bar.count).c_str(), decimalStringToDisplay(bar.wap).c_str());
 }
 //! [historicaldata]
 
 //! [historicaldataend]
-void TestCppClient::historicalDataEnd(int reqId, const std::string& startDateStr, const std::string& endDateStr) {
-	std::cout << "HistoricalDataEnd. ReqId: " << reqId << " - Start Date: " << startDateStr << ", End Date: " << endDateStr << std::endl;	
+void IBClient::historicalDataEnd(int reqId, const std::string& startDateStr, const std::string& endDateStr) {
+	std::cout << "HistoricalDataEnd. ReqId: " << reqId << " - Start Date: " << startDateStr << ", End Date: " << endDateStr << std::endl;
 }
 //! [historicaldataend]
 
 //! [scannerparameters]
-void TestCppClient::scannerParameters(const std::string& xml) {
+void IBClient::scannerParameters(const std::string& xml) {
 	printf( "ScannerParameters. %s\n", xml.c_str());
 }
 //! [scannerparameters]
 
 //! [scannerdata]
-void TestCppClient::scannerData(int reqId, int rank, const ContractDetails& contractDetails,
+void IBClient::scannerData(int reqId, int rank, const ContractDetails& contractDetails,
                                 const std::string& distance, const std::string& benchmark, const std::string& projection,
                                 const std::string& legsStr) {
 	printf( "ScannerData. %d - Rank: %d, Symbol: %s, SecType: %s, Currency: %s, Distance: %s, Benchmark: %s, Projection: %s, Legs String: %s\n", reqId, rank, contractDetails.contract.symbol.c_str(), contractDetails.contract.secType.c_str(), contractDetails.contract.currency.c_str(), distance.c_str(), benchmark.c_str(), projection.c_str(), legsStr.c_str());
@@ -1859,141 +1863,141 @@ void TestCppClient::scannerData(int reqId, int rank, const ContractDetails& cont
 //! [scannerdata]
 
 //! [scannerdataend]
-void TestCppClient::scannerDataEnd(int reqId) {
+void IBClient::scannerDataEnd(int reqId) {
 	printf( "ScannerDataEnd. %d\n", reqId);
 }
 //! [scannerdataend]
 
 //! [realtimebar]
-void TestCppClient::realtimeBar(TickerId reqId, long time, double open, double high, double low, double close,
+void IBClient::realtimeBar(TickerId reqId, long time, double open, double high, double low, double close,
                                 Decimal volume, Decimal wap, int count) {
-    printf( "RealTimeBars. %ld - Time: %s, Open: %s, High: %s, Low: %s, Close: %s, Volume: %s, Count: %s, WAP: %s\n", reqId, Utils::longMaxString(time).c_str(), 
-        Utils::doubleMaxString(open).c_str(), Utils::doubleMaxString(high).c_str(), Utils::doubleMaxString(low).c_str(), Utils::doubleMaxString(close).c_str(), 
+    printf( "RealTimeBars. %ld - Time: %s, Open: %s, High: %s, Low: %s, Close: %s, Volume: %s, Count: %s, WAP: %s\n", reqId, Utils::longMaxString(time).c_str(),
+        Utils::doubleMaxString(open).c_str(), Utils::doubleMaxString(high).c_str(), Utils::doubleMaxString(low).c_str(), Utils::doubleMaxString(close).c_str(),
         decimalStringToDisplay(volume).c_str(), Utils::intMaxString(count).c_str(), decimalStringToDisplay(wap).c_str());
 }
 //! [realtimebar]
 
 //! [fundamentaldata]
-void TestCppClient::fundamentalData(TickerId reqId, const std::string& data) {
+void IBClient::fundamentalData(TickerId reqId, const std::string& data) {
 	printf( "FundamentalData. ReqId: %ld, %s\n", reqId, data.c_str());
 }
 //! [fundamentaldata]
 
-void TestCppClient::deltaNeutralValidation(int reqId, const DeltaNeutralContract& deltaNeutralContract) {
+void IBClient::deltaNeutralValidation(int reqId, const DeltaNeutralContract& deltaNeutralContract) {
     printf( "DeltaNeutralValidation. %d, ConId: %ld, Delta: %s, Price: %s\n", reqId, deltaNeutralContract.conId, Utils::doubleMaxString(deltaNeutralContract.delta).c_str(), Utils::doubleMaxString(deltaNeutralContract.price).c_str());
 }
 
 //! [ticksnapshotend]
-void TestCppClient::tickSnapshotEnd(int reqId) {
+void IBClient::tickSnapshotEnd(int reqId) {
 	printf( "TickSnapshotEnd: %d\n", reqId);
 }
 //! [ticksnapshotend]
 
 //! [marketdatatype]
-void TestCppClient::marketDataType(TickerId reqId, int marketDataType) {
+void IBClient::marketDataType(TickerId reqId, int marketDataType) {
 	printf( "MarketDataType. ReqId: %ld, Type: %d\n", reqId, marketDataType);
 }
 //! [marketdatatype]
 
 //! [commissionreport]
-void TestCppClient::commissionReport( const CommissionReport& commissionReport) {
+void IBClient::commissionReport( const CommissionReport& commissionReport) {
     printf( "CommissionReport. %s - %s %s RPNL %s\n", commissionReport.execId.c_str(), Utils::doubleMaxString(commissionReport.commission).c_str(), commissionReport.currency.c_str(), Utils::doubleMaxString(commissionReport.realizedPNL).c_str());
 }
 //! [commissionreport]
 
 //! [position]
-void TestCppClient::position( const std::string& account, const Contract& contract, Decimal position, double avgCost) {
+void IBClient::position( const std::string& account, const Contract& contract, Decimal position, double avgCost) {
     printf( "Position. %s - Symbol: %s, SecType: %s, Currency: %s, Position: %s, Avg Cost: %s\n", account.c_str(), contract.symbol.c_str(), contract.secType.c_str(), contract.currency.c_str(), decimalStringToDisplay(position).c_str(), Utils::doubleMaxString(avgCost).c_str());
 }
 //! [position]
 
 //! [positionend]
-void TestCppClient::positionEnd() {
+void IBClient::positionEnd() {
 	printf( "PositionEnd\n");
 }
 //! [positionend]
 
 //! [accountsummary]
-void TestCppClient::accountSummary( int reqId, const std::string& account, const std::string& tag, const std::string& value, const std::string& currency) {
+void IBClient::accountSummary( int reqId, const std::string& account, const std::string& tag, const std::string& value, const std::string& currency) {
 	printf( "Acct Summary. ReqId: %d, Account: %s, Tag: %s, Value: %s, Currency: %s\n", reqId, account.c_str(), tag.c_str(), value.c_str(), currency.c_str());
 }
 //! [accountsummary]
 
 //! [accountsummaryend]
-void TestCppClient::accountSummaryEnd( int reqId) {
+void IBClient::accountSummaryEnd( int reqId) {
 	printf( "AccountSummaryEnd. Req Id: %d\n", reqId);
 }
 //! [accountsummaryend]
 
-void TestCppClient::verifyMessageAPI( const std::string& apiData) {
+void IBClient::verifyMessageAPI( const std::string& apiData) {
 	printf("verifyMessageAPI: %s\b", apiData.c_str());
 }
 
-void TestCppClient::verifyCompleted( bool isSuccessful, const std::string& errorText) {
+void IBClient::verifyCompleted( bool isSuccessful, const std::string& errorText) {
 	printf("verifyCompleted. IsSuccessfule: %d - Error: %s\n", isSuccessful, errorText.c_str());
 }
 
-void TestCppClient::verifyAndAuthMessageAPI( const std::string& apiDatai, const std::string& xyzChallenge) {
+void IBClient::verifyAndAuthMessageAPI( const std::string& apiDatai, const std::string& xyzChallenge) {
 	printf("verifyAndAuthMessageAPI: %s %s\n", apiDatai.c_str(), xyzChallenge.c_str());
 }
 
-void TestCppClient::verifyAndAuthCompleted( bool isSuccessful, const std::string& errorText) {
+void IBClient::verifyAndAuthCompleted( bool isSuccessful, const std::string& errorText) {
 	printf("verifyAndAuthCompleted. IsSuccessful: %d - Error: %s\n", isSuccessful, errorText.c_str());
     if (isSuccessful)
         m_pClient->startApi();
 }
 
 //! [displaygrouplist]
-void TestCppClient::displayGroupList( int reqId, const std::string& groups) {
+void IBClient::displayGroupList( int reqId, const std::string& groups) {
 	printf("Display Group List. ReqId: %d, Groups: %s\n", reqId, groups.c_str());
 }
 //! [displaygrouplist]
 
 //! [displaygroupupdated]
-void TestCppClient::displayGroupUpdated( int reqId, const std::string& contractInfo) {
+void IBClient::displayGroupUpdated( int reqId, const std::string& contractInfo) {
 	std::cout << "Display Group Updated. ReqId: " << reqId << ", Contract Info: " << contractInfo << std::endl;
 }
 //! [displaygroupupdated]
 
 //! [positionmulti]
-void TestCppClient::positionMulti( int reqId, const std::string& account,const std::string& modelCode, const Contract& contract, Decimal pos, double avgCost) {
+void IBClient::positionMulti( int reqId, const std::string& account,const std::string& modelCode, const Contract& contract, Decimal pos, double avgCost) {
     printf("Position Multi. Request: %d, Account: %s, ModelCode: %s, Symbol: %s, SecType: %s, Currency: %s, Position: %s, Avg Cost: %s\n", reqId, account.c_str(), modelCode.c_str(), contract.symbol.c_str(), contract.secType.c_str(), contract.currency.c_str(), decimalStringToDisplay(pos).c_str(), Utils::doubleMaxString(avgCost).c_str());
 }
 //! [positionmulti]
 
 //! [positionmultiend]
-void TestCppClient::positionMultiEnd( int reqId) {
+void IBClient::positionMultiEnd( int reqId) {
 	printf("Position Multi End. Request: %d\n", reqId);
 }
 //! [positionmultiend]
 
 //! [accountupdatemulti]
-void TestCppClient::accountUpdateMulti( int reqId, const std::string& account, const std::string& modelCode, const std::string& key, const std::string& value, const std::string& currency) {
+void IBClient::accountUpdateMulti( int reqId, const std::string& account, const std::string& modelCode, const std::string& key, const std::string& value, const std::string& currency) {
 	printf("AccountUpdate Multi. Request: %d, Account: %s, ModelCode: %s, Key, %s, Value: %s, Currency: %s\n", reqId, account.c_str(), modelCode.c_str(), key.c_str(), value.c_str(), currency.c_str());
 }
 //! [accountupdatemulti]
 
 //! [accountupdatemultiend]
-void TestCppClient::accountUpdateMultiEnd( int reqId) {
+void IBClient::accountUpdateMultiEnd( int reqId) {
 	printf("Account Update Multi End. Request: %d\n", reqId);
 }
 //! [accountupdatemultiend]
 
 //! [securityDefinitionOptionParameter]
-void TestCppClient::securityDefinitionOptionalParameter(int reqId, const std::string& exchange, int underlyingConId, const std::string& tradingClass,
+void IBClient::securityDefinitionOptionalParameter(int reqId, const std::string& exchange, int underlyingConId, const std::string& tradingClass,
                                                         const std::string& multiplier, const std::set<std::string>& expirations, const std::set<double>& strikes) {
 	printf("Security Definition Optional Parameter. Request: %d, Trading Class: %s, Multiplier: %s\n", reqId, tradingClass.c_str(), multiplier.c_str());
 }
 //! [securityDefinitionOptionParameter]
 
 //! [securityDefinitionOptionParameterEnd]
-void TestCppClient::securityDefinitionOptionalParameterEnd(int reqId) {
+void IBClient::securityDefinitionOptionalParameterEnd(int reqId) {
 	printf("Security Definition Optional Parameter End. Request: %d\n", reqId);
 }
 //! [securityDefinitionOptionParameterEnd]
 
 //! [softDollarTiers]
-void TestCppClient::softDollarTiers(int reqId, const std::vector<SoftDollarTier> &tiers) {
+void IBClient::softDollarTiers(int reqId, const std::vector<SoftDollarTier> &tiers) {
 	printf("Soft dollar tiers (%lu):", tiers.size());
 
 	for (unsigned int i = 0; i < tiers.size(); i++) {
@@ -2003,7 +2007,7 @@ void TestCppClient::softDollarTiers(int reqId, const std::vector<SoftDollarTier>
 //! [softDollarTiers]
 
 //! [familyCodes]
-void TestCppClient::familyCodes(const std::vector<FamilyCode> &familyCodes) {
+void IBClient::familyCodes(const std::vector<FamilyCode> &familyCodes) {
 	printf("Family codes (%lu):\n", familyCodes.size());
 
 	for (unsigned int i = 0; i < familyCodes.size(); i++) {
@@ -2013,7 +2017,7 @@ void TestCppClient::familyCodes(const std::vector<FamilyCode> &familyCodes) {
 //! [familyCodes]
 
 //! [symbolSamples]
-void TestCppClient::symbolSamples(int reqId, const std::vector<ContractDescription> &contractDescriptions) {
+void IBClient::symbolSamples(int reqId, const std::vector<ContractDescription> &contractDescriptions) {
 	printf("Symbol Samples (total=%lu) reqId: %d\n", contractDescriptions.size(), reqId);
 
 	for (unsigned int i = 0; i < contractDescriptions.size(); i++) {
@@ -2031,7 +2035,7 @@ void TestCppClient::symbolSamples(int reqId, const std::vector<ContractDescripti
 //! [symbolSamples]
 
 //! [mktDepthExchanges]
-void TestCppClient::mktDepthExchanges(const std::vector<DepthMktDataDescription> &depthMktDataDescriptions) {
+void IBClient::mktDepthExchanges(const std::vector<DepthMktDataDescription> &depthMktDataDescriptions) {
 	printf("Mkt Depth Exchanges (%lu):\n", depthMktDataDescriptions.size());
 
 	for (unsigned int i = 0; i < depthMktDataDescriptions.size(); i++) {
@@ -2046,13 +2050,13 @@ void TestCppClient::mktDepthExchanges(const std::vector<DepthMktDataDescription>
 //! [mktDepthExchanges]
 
 //! [tickNews]
-void TestCppClient::tickNews(int tickerId, time_t timeStamp, const std::string& providerCode, const std::string& articleId, const std::string& headline, const std::string& extraData) {
+void IBClient::tickNews(int tickerId, time_t timeStamp, const std::string& providerCode, const std::string& articleId, const std::string& headline, const std::string& extraData) {
 	printf("News Tick. TickerId: %d, TimeStamp: %s, ProviderCode: %s, ArticleId: %s, Headline: %s, ExtraData: %s\n", tickerId, ctime(&(timeStamp /= 1000)), providerCode.c_str(), articleId.c_str(), headline.c_str(), extraData.c_str());
 }
 //! [tickNews]
 
 //! [smartcomponents]]
-void TestCppClient::smartComponents(int reqId, const SmartComponentsMap& theMap) {
+void IBClient::smartComponents(int reqId, const SmartComponentsMap& theMap) {
 	printf("Smart components: (%lu):\n", theMap.size());
 
 	for (SmartComponentsMap::const_iterator i = theMap.begin(); i != theMap.end(); i++) {
@@ -2062,7 +2066,7 @@ void TestCppClient::smartComponents(int reqId, const SmartComponentsMap& theMap)
 //! [smartcomponents]
 
 //! [tickReqParams]
-void TestCppClient::tickReqParams(int tickerId, double minTick, const std::string& bboExchange, int snapshotPermissions) {
+void IBClient::tickReqParams(int tickerId, double minTick, const std::string& bboExchange, int snapshotPermissions) {
     printf("tickerId: %d, minTick: %s, bboExchange: %s, snapshotPermissions: %u\n", tickerId, Utils::doubleMaxString(minTick).c_str(), bboExchange.c_str(), snapshotPermissions);
 
 	m_bboExchange = bboExchange;
@@ -2070,7 +2074,7 @@ void TestCppClient::tickReqParams(int tickerId, double minTick, const std::strin
 //! [tickReqParams]
 
 //! [newsProviders]
-void TestCppClient::newsProviders(const std::vector<NewsProvider> &newsProviders) {
+void IBClient::newsProviders(const std::vector<NewsProvider> &newsProviders) {
 	printf("News providers (%lu):\n", newsProviders.size());
 
 	for (unsigned int i = 0; i < newsProviders.size(); i++) {
@@ -2080,7 +2084,7 @@ void TestCppClient::newsProviders(const std::vector<NewsProvider> &newsProviders
 //! [newsProviders]
 
 //! [newsArticle]
-void TestCppClient::newsArticle(int requestId, int articleType, const std::string& articleText) {
+void IBClient::newsArticle(int requestId, int articleType, const std::string& articleText) {
 	printf("News Article. Request Id: %d, Article Type: %d\n", requestId, articleType);
 	if (articleType == 0) {
 		printf("News Article Text (text or html): %s\n", articleText.c_str());
@@ -2099,7 +2103,7 @@ void TestCppClient::newsArticle(int requestId, int articleType, const std::strin
 			path = s + std::string("/MST$06f53098.pdf");
 		#endif
 		std::vector<std::uint8_t> bytes = Utils::base64_decode(articleText);
-		std::ofstream outfile(path, std::ios::out | std::ios::binary); 
+		std::ofstream outfile(path, std::ios::out | std::ios::binary);
 		outfile.write((const char*)bytes.data(), bytes.size());
 		printf("Binary/pdf article was saved to: %s\n", path.c_str());
 	}
@@ -2107,26 +2111,26 @@ void TestCppClient::newsArticle(int requestId, int articleType, const std::strin
 //! [newsArticle]
 
 //! [historicalNews]
-void TestCppClient::historicalNews(int requestId, const std::string& time, const std::string& providerCode, const std::string& articleId, const std::string& headline) {
+void IBClient::historicalNews(int requestId, const std::string& time, const std::string& providerCode, const std::string& articleId, const std::string& headline) {
 	printf("Historical News. RequestId: %d, Time: %s, ProviderCode: %s, ArticleId: %s, Headline: %s\n", requestId, time.c_str(), providerCode.c_str(), articleId.c_str(), headline.c_str());
 }
 //! [historicalNews]
 
 //! [historicalNewsEnd]
-void TestCppClient::historicalNewsEnd(int requestId, bool hasMore) {
+void IBClient::historicalNewsEnd(int requestId, bool hasMore) {
 	printf("Historical News End. RequestId: %d, HasMore: %s\n", requestId, (hasMore ? "true" : " false"));
 }
 //! [historicalNewsEnd]
 
 //! [headTimestamp]
-void TestCppClient::headTimestamp(int reqId, const std::string& headTimestamp) {
+void IBClient::headTimestamp(int reqId, const std::string& headTimestamp) {
 	printf( "Head time stamp. ReqId: %d - Head time stamp: %s,\n", reqId, headTimestamp.c_str());
 
 }
 //! [headTimestamp]
 
 //! [histogramData]
-void TestCppClient::histogramData(int reqId, const HistogramDataVector& data) {
+void IBClient::histogramData(int reqId, const HistogramDataVector& data) {
 	printf("Histogram. ReqId: %d, data length: %lu\n", reqId, data.size());
 
     for (const HistogramEntry& entry : data) {
@@ -2136,27 +2140,27 @@ void TestCppClient::histogramData(int reqId, const HistogramDataVector& data) {
 //! [histogramData]
 
 //! [historicalDataUpdate]
-void TestCppClient::historicalDataUpdate(TickerId reqId, const Bar& bar) {
-    printf( "HistoricalDataUpdate. ReqId: %ld - Date: %s, Open: %s, High: %s, Low: %s, Close: %s, Volume: %s, Count: %s, WAP: %s\n", reqId, bar.time.c_str(), 
-        Utils::doubleMaxString(bar.open).c_str(), Utils::doubleMaxString(bar.high).c_str(), Utils::doubleMaxString(bar.low).c_str(), Utils::doubleMaxString(bar.close).c_str(), 
+void IBClient::historicalDataUpdate(TickerId reqId, const Bar& bar) {
+    printf( "HistoricalDataUpdate. ReqId: %ld - Date: %s, Open: %s, High: %s, Low: %s, Close: %s, Volume: %s, Count: %s, WAP: %s\n", reqId, bar.time.c_str(),
+        Utils::doubleMaxString(bar.open).c_str(), Utils::doubleMaxString(bar.high).c_str(), Utils::doubleMaxString(bar.low).c_str(), Utils::doubleMaxString(bar.close).c_str(),
         decimalStringToDisplay(bar.volume).c_str(), Utils::intMaxString(bar.count).c_str(), decimalStringToDisplay(bar.wap).c_str());
 }
 //! [historicalDataUpdate]
 
 //! [rerouteMktDataReq]
-void TestCppClient::rerouteMktDataReq(int reqId, int conid, const std::string& exchange) {
+void IBClient::rerouteMktDataReq(int reqId, int conid, const std::string& exchange) {
 	printf( "Re-route market data request. ReqId: %d, ConId: %d, Exchange: %s\n", reqId, conid, exchange.c_str());
 }
 //! [rerouteMktDataReq]
 
 //! [rerouteMktDepthReq]
-void TestCppClient::rerouteMktDepthReq(int reqId, int conid, const std::string& exchange) {
+void IBClient::rerouteMktDepthReq(int reqId, int conid, const std::string& exchange) {
 	printf( "Re-route market depth request. ReqId: %d, ConId: %d, Exchange: %s\n", reqId, conid, exchange.c_str());
 }
 //! [rerouteMktDepthReq]
 
 //! [marketRule]
-void TestCppClient::marketRule(int marketRuleId, const std::vector<PriceIncrement> &priceIncrements) {
+void IBClient::marketRule(int marketRuleId, const std::vector<PriceIncrement> &priceIncrements) {
     printf("Market Rule Id: %s\n", Utils::intMaxString(marketRuleId).c_str());
     for (unsigned int i = 0; i < priceIncrements.size(); i++) {
         printf("Low Edge: %s, Increment: %s\n", Utils::doubleMaxString(priceIncrements[i].lowEdge).c_str(), Utils::doubleMaxString(priceIncrements[i].increment).c_str());
@@ -2165,21 +2169,21 @@ void TestCppClient::marketRule(int marketRuleId, const std::vector<PriceIncremen
 //! [marketRule]
 
 //! [pnl]
-void TestCppClient::pnl(int reqId, double dailyPnL, double unrealizedPnL, double realizedPnL) {
-    printf("PnL. ReqId: %d, daily PnL: %s, unrealized PnL: %s, realized PnL: %s\n", reqId, Utils::doubleMaxString(dailyPnL).c_str(), Utils::doubleMaxString(unrealizedPnL).c_str(), 
+void IBClient::pnl(int reqId, double dailyPnL, double unrealizedPnL, double realizedPnL) {
+    printf("PnL. ReqId: %d, daily PnL: %s, unrealized PnL: %s, realized PnL: %s\n", reqId, Utils::doubleMaxString(dailyPnL).c_str(), Utils::doubleMaxString(unrealizedPnL).c_str(),
         Utils::doubleMaxString(realizedPnL).c_str());
 }
 //! [pnl]
 
 //! [pnlsingle]
-void TestCppClient::pnlSingle(int reqId, Decimal pos, double dailyPnL, double unrealizedPnL, double realizedPnL, double value) {
-    printf("PnL Single. ReqId: %d, pos: %s, daily PnL: %s, unrealized PnL: %s, realized PnL: %s, value: %s\n", reqId, decimalStringToDisplay(pos).c_str(), Utils::doubleMaxString(dailyPnL).c_str(), 
+void IBClient::pnlSingle(int reqId, Decimal pos, double dailyPnL, double unrealizedPnL, double realizedPnL, double value) {
+    printf("PnL Single. ReqId: %d, pos: %s, daily PnL: %s, unrealized PnL: %s, realized PnL: %s, value: %s\n", reqId, decimalStringToDisplay(pos).c_str(), Utils::doubleMaxString(dailyPnL).c_str(),
         Utils::doubleMaxString(unrealizedPnL).c_str(), Utils::doubleMaxString(realizedPnL).c_str(), Utils::doubleMaxString(value).c_str());
 }
 //! [pnlsingle]
 
 //! [historicalticks]
-void TestCppClient::historicalTicks(int reqId, const std::vector<HistoricalTick>& ticks, bool done) {
+void IBClient::historicalTicks(int reqId, const std::vector<HistoricalTick>& ticks, bool done) {
     for (const HistoricalTick& tick : ticks) {
     std::time_t t = tick.time;
         std::cout << "Historical tick. ReqId: " << reqId << ", time: " << ctime(&t) << ", price: "<< Utils::doubleMaxString(tick.price).c_str()	<< ", size: " << decimalStringToDisplay(tick.size).c_str() << std::endl;
@@ -2188,7 +2192,7 @@ void TestCppClient::historicalTicks(int reqId, const std::vector<HistoricalTick>
 //! [historicalticks]
 
 //! [historicalticksbidask]
-void TestCppClient::historicalTicksBidAsk(int reqId, const std::vector<HistoricalTickBidAsk>& ticks, bool done) {
+void IBClient::historicalTicksBidAsk(int reqId, const std::vector<HistoricalTickBidAsk>& ticks, bool done) {
     for (const HistoricalTickBidAsk& tick : ticks) {
     std::time_t t = tick.time;
         std::cout << "Historical tick bid/ask. ReqId: " << reqId << ", time: " << ctime(&t) << ", price bid: "<< Utils::doubleMaxString(tick.priceBid).c_str()	<<
@@ -2199,7 +2203,7 @@ void TestCppClient::historicalTicksBidAsk(int reqId, const std::vector<Historica
 //! [historicalticksbidask]
 
 //! [historicaltickslast]
-void TestCppClient::historicalTicksLast(int reqId, const std::vector<HistoricalTickLast>& ticks, bool done) {
+void IBClient::historicalTicksLast(int reqId, const std::vector<HistoricalTickLast>& ticks, bool done) {
     for (HistoricalTickLast tick : ticks) {
 	std::time_t t = tick.time;
         std::cout << "Historical tick last. ReqId: " << reqId << ", time: " << ctime(&t) << ", price: "<< Utils::doubleMaxString(tick.price).c_str() <<
@@ -2210,33 +2214,33 @@ void TestCppClient::historicalTicksLast(int reqId, const std::vector<HistoricalT
 //! [historicaltickslast]
 
 //! [tickbytickalllast]
-void TestCppClient::tickByTickAllLast(int reqId, int tickType, time_t time, double price, Decimal size, const TickAttribLast& tickAttribLast, const std::string& exchange, const std::string& specialConditions) {
-    printf("Tick-By-Tick. ReqId: %d, TickType: %s, Time: %s, Price: %s, Size: %s, PastLimit: %d, Unreported: %d, Exchange: %s, SpecialConditions:%s\n", 
+void IBClient::tickByTickAllLast(int reqId, int tickType, time_t time, double price, Decimal size, const TickAttribLast& tickAttribLast, const std::string& exchange, const std::string& specialConditions) {
+    printf("Tick-By-Tick. ReqId: %d, TickType: %s, Time: %s, Price: %s, Size: %s, PastLimit: %d, Unreported: %d, Exchange: %s, SpecialConditions:%s\n",
         reqId, (tickType == 1 ? "Last" : "AllLast"), ctime(&time), Utils::doubleMaxString(price).c_str(), decimalStringToDisplay(size).c_str(), tickAttribLast.pastLimit, tickAttribLast.unreported, exchange.c_str(), specialConditions.c_str());
 }
 //! [tickbytickalllast]
 
 //! [tickbytickbidask]
-void TestCppClient::tickByTickBidAsk(int reqId, time_t time, double bidPrice, double askPrice, Decimal bidSize, Decimal askSize, const TickAttribBidAsk& tickAttribBidAsk) {
-    printf("Tick-By-Tick. ReqId: %d, TickType: BidAsk, Time: %s, BidPrice: %s, AskPrice: %s, BidSize: %s, AskSize: %s, BidPastLow: %d, AskPastHigh: %d\n", 
+void IBClient::tickByTickBidAsk(int reqId, time_t time, double bidPrice, double askPrice, Decimal bidSize, Decimal askSize, const TickAttribBidAsk& tickAttribBidAsk) {
+    printf("Tick-By-Tick. ReqId: %d, TickType: BidAsk, Time: %s, BidPrice: %s, AskPrice: %s, BidSize: %s, AskSize: %s, BidPastLow: %d, AskPastHigh: %d\n",
         reqId, ctime(&time), Utils::doubleMaxString(bidPrice).c_str(), Utils::doubleMaxString(askPrice).c_str(), decimalStringToDisplay(bidSize).c_str(), decimalStringToDisplay(askSize).c_str(), tickAttribBidAsk.bidPastLow, tickAttribBidAsk.askPastHigh);
 }
 //! [tickbytickbidask]
 
 //! [tickbytickmidpoint]
-void TestCppClient::tickByTickMidPoint(int reqId, time_t time, double midPoint) {
+void IBClient::tickByTickMidPoint(int reqId, time_t time, double midPoint) {
     printf("Tick-By-Tick. ReqId: %d, TickType: MidPoint, Time: %s, MidPoint: %s\n", reqId, ctime(&time), Utils::doubleMaxString(midPoint).c_str());
 }
 //! [tickbytickmidpoint]
 
 //! [orderbound]
-void TestCppClient::orderBound(long long orderId, int apiClientId, int apiOrderId) {
+void IBClient::orderBound(long long orderId, int apiClientId, int apiOrderId) {
     printf("Order bound. OrderId: %s, ApiClientId: %s, ApiOrderId: %s\n", Utils::llongMaxString(orderId).c_str(), Utils::intMaxString(apiClientId).c_str(), Utils::intMaxString(apiOrderId).c_str());
 }
 //! [orderbound]
 
 //! [completedorder]
-void TestCppClient::completedOrder(const Contract& contract, const Order& order, const OrderState& orderState) {
+void IBClient::completedOrder(const Contract& contract, const Order& order, const OrderState& orderState) {
     printf( "CompletedOrder. PermId: %s, ParentPermId: %s, Account: %s, Symbol: %s, SecType: %s, Exchange: %s:, Action: %s, OrderType: %s, TotalQty: %s, CashQty: %s, FilledQty: %s, "
         "LmtPrice: %s, AuxPrice: %s, Status: %s, CompletedTime: %s, CompletedStatus: %s, MinTradeQty: %s, MinCompeteSize: %s, CompeteAgainstBestOffset: %s, MidOffsetAtWhole: %s, MidOffsetAtHalf: %s\n",
         Utils::intMaxString(order.permId).c_str(), Utils::llongMaxString(order.parentPermId).c_str(), order.account.c_str(), contract.symbol.c_str(), contract.secType.c_str(), contract.exchange.c_str(),
@@ -2249,31 +2253,31 @@ void TestCppClient::completedOrder(const Contract& contract, const Order& order,
 //! [completedorder]
 
 //! [completedordersend]
-void TestCppClient::completedOrdersEnd() {
+void IBClient::completedOrdersEnd() {
 	printf( "CompletedOrdersEnd\n");
 }
 //! [completedordersend]
 
 //! [replacefaend]
-void TestCppClient::replaceFAEnd(int reqId, const std::string& text) {
+void IBClient::replaceFAEnd(int reqId, const std::string& text) {
 	printf("Replace FA End. Request: %d, Text:%s\n", reqId, text.c_str());
 }
 //! [replacefaend]
 
 //! [wshMetaData]
-void TestCppClient::wshMetaData(int reqId, const std::string& dataJson) {
+void IBClient::wshMetaData(int reqId, const std::string& dataJson) {
 	printf("WSH Meta Data. ReqId: %d, dataJson: %s\n", reqId, dataJson.c_str());
 }
 //! [wshMetaData]
 
 //! [wshEventData]
-void TestCppClient::wshEventData(int reqId, const std::string& dataJson) {
+void IBClient::wshEventData(int reqId, const std::string& dataJson) {
 	printf("WSH Event Data. ReqId: %d, dataJson: %s\n", reqId, dataJson.c_str());
 }
 //! [wshEventData]
 
 //! [historicalSchedule]
-void TestCppClient::historicalSchedule(int reqId, const std::string& startDateTime, const std::string& endDateTime, const std::string& timeZone, const std::vector<HistoricalSession>& sessions) {
+void IBClient::historicalSchedule(int reqId, const std::string& startDateTime, const std::string& endDateTime, const std::string& timeZone, const std::vector<HistoricalSession>& sessions) {
 	printf("Historical Schedule. ReqId: %d, Start: %s, End: %s, TimeZone: %s\n", reqId, startDateTime.c_str(), endDateTime.c_str(), timeZone.c_str());
 	for (unsigned int i = 0; i < sessions.size(); i++) {
 		printf("\tSession. Start: %s, End: %s, RefDate: %s\n", sessions[i].startDateTime.c_str(), sessions[i].endDateTime.c_str(), sessions[i].refDate.c_str());
@@ -2282,7 +2286,7 @@ void TestCppClient::historicalSchedule(int reqId, const std::string& startDateTi
 //! [historicalSchedule]
 
 //! [userInfo]
-void TestCppClient::userInfo(int reqId, const std::string& whiteBrandingId) {
+void IBClient::userInfo(int reqId, const std::string& whiteBrandingId) {
     printf("User Info. ReqId: %d, WhiteBrandingId: %s\n", reqId, whiteBrandingId.c_str());
 }
 //! [userInfo]

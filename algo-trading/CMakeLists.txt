@@ -4,7 +4,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 project(MyGTestProject)
 
 # Specify the C++ standard
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include_directories(src)
@@ -55,14 +55,22 @@ endif()
 
 include_directories(src/IBJts/source/cppclient/)
 include_directories(src/IBJts/source/cppclient/client/)
+include_directories(src/IBJts/samples/Cpp/TestCppClient/)
+
+find_package(Boost REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
+
+
 
 
 file(GLOB_RECURSE IB_API_SRC_FILES IBJts/source/cppclient/client/*.cpp)
 # Add the test executable
 file(GLOB_RECURSE SRC_FILES  ./src/*.cpp)
 
-
 message(STATUS "Source files: ${SRC_FILES}")
-add_executable(runTests ${SRC_FILES} ${IB_API_SRC_FILES})
+add_executable(runTests ${SRC_FILES} ${IB_API_SRC_FILES}
+        src/src/main.cpp
+        src/src/IBClient.cpp
+        src/src/IBClient.h)
 # Link test executable against gtest & gtest_main
 target_link_libraries(runTests    pthread )

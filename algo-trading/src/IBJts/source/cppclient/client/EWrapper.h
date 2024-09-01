@@ -126,6 +126,62 @@ typedef std::map<int, std::tuple<std::string, char>> SmartComponentsMap;
 typedef std::vector<HistogramEntry> HistogramDataVector;
 
 
+
+#include <boost/preprocessor/seq/for_each.hpp>
+#include <boost/preprocessor/tuple/elem.hpp>
+#include <boost/preprocessor/stringize.hpp>
+
+#define TO_STRING(X) #X
+#define ENUM_STRING(r, data, elem) \
+      case elem:  return std::to_string(elem) + "_" + TO_STRING(elem) ;
+
+inline std::string  tickTypeToString(TickType tickType) 
+{
+	switch(tickType){
+		 BOOST_PP_SEQ_FOR_EACH(ENUM_STRING, "",
+		      (BID_SIZE)
+			  (BID)
+			  (ASK)
+			  (ASK_SIZE)
+			  (LAST)
+			  (LAST_SIZE)
+			  (HIGH)
+			  (LOW)
+			  (VOLUME)
+			  (CLOSE)
+			  (BID_OPTION_COMPUTATION)
+			  (ASK_OPTION_COMPUTATION)
+			  (LAST_OPTION_COMPUTATION)
+			  (MODEL_OPTION)
+			  (OPEN)
+			  (LOW_13_WEEK)
+               (AUCTION_VOLUME)
+				(AUCTION_PRICE)
+				(AUCTION_IMBALANCE)
+				(MARK_PRICE)
+				(BID_EFP_COMPUTATION)
+				(ASK_EFP_COMPUTATION)
+				(LAST_EFP_COMPUTATION)
+				(OPEN_EFP_COMPUTATION)
+				(HIGH_EFP_COMPUTATION)
+				(LOW_EFP_COMPUTATION)
+				(CLOSE_EFP_COMPUTATION)
+				(LAST_TIMESTAMP)
+				(SHORTABLE)
+				(FUNDAMENTAL_RATIOS)
+				(RT_VOLUME)
+				(HALTED)
+				(BID_YIELD)
+				(ASK_YIELD)
+				(LAST_YIELD)
+				(CUST_OPTION_COMPUTATION)
+				(TRADE_COUNT)
+				(TRADE_RATE)
+			   )
+	};
+	return std::to_string(tickType) + "_";
+}
+
 inline bool isPrice( TickType tickType) {
 	return tickType == BID || tickType == ASK || tickType == LAST || tickType == DELAYED_BID || tickType == DELAYED_ASK || tickType == DELAYED_LAST;
 }
