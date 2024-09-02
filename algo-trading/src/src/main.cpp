@@ -32,7 +32,7 @@ int main(int argc, char** argv)
     //    port = 7497;
 
     std::vector< std::tuple<const char*, int> > ib_api_servers;
-    ib_api_servers.emplace_back("192.168.1.200", 7497); //remote paper, win,
+    ib_api_servers.emplace_back("192.168.1.201", 7497); //remote paper, win,
     ib_api_servers.emplace_back("*", 7497); //local paper
 
     init_logging();

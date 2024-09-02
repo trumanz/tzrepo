@@ -185,7 +185,7 @@ private:
 	void printContractDetailsSecIdList(const TagValueListSPtr &secIdList);
 	void printBondContractDetailsMsg(const ContractDetails& contractDetails);
 
-private:
+protected:
 	//! [socket_declare]
 	EReaderOSSignal m_osSignal;
 	EClientSocket * const m_pClient;
