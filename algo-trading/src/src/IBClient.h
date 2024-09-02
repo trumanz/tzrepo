@@ -17,8 +17,9 @@
 class EClientSocket;
 
 
+#include "log.h"
 
-
+#include "event/DataEvent.h"
 
 //! [ewrapperimpl]
 class IBClient : public EWrapper

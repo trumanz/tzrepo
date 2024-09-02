@@ -37,6 +37,7 @@
 #include <fstream>
 #include <cstdint>
 
+
 const int PING_DEADLINE = 2; // seconds
 const int SLEEP_BETWEEN_PINGS = 30; // seconds
 
@@ -2222,8 +2223,18 @@ void IBClient::tickByTickAllLast(int reqId, int tickType, time_t time, double pr
 
 //! [tickbytickbidask]
 void IBClient::tickByTickBidAsk(int reqId, time_t time, double bidPrice, double askPrice, Decimal bidSize, Decimal askSize, const TickAttribBidAsk& tickAttribBidAsk) {
-    printf("Tick-By-Tick. ReqId: %d, TickType: BidAsk, Time: %s, BidPrice: %s, AskPrice: %s, BidSize: %s, AskSize: %s, BidPastLow: %d, AskPastHigh: %d\n",
-        reqId, ctime(&time), Utils::doubleMaxString(bidPrice).c_str(), Utils::doubleMaxString(askPrice).c_str(), decimalStringToDisplay(bidSize).c_str(), decimalStringToDisplay(askSize).c_str(), tickAttribBidAsk.bidPastLow, tickAttribBidAsk.askPastHigh);
+    LOG_INFO("Tick-By-Tick. ReqId: %d, TickType: BidAsk, Time: %s, BidPrice: %s, AskPrice: %s, BidSize: %s, AskSize: %s, BidPastLow: %d, AskPastHigh: %d",
+        reqId, ctime(&time), Utils::doubleMaxString(bidPrice).c_str(), Utils::doubleMaxString(askPrice).c_str(),
+           decimalStringToDisplay(bidSize).c_str(), decimalStringToDisplay(askSize).c_str(), tickAttribBidAsk.bidPastLow, tickAttribBidAsk.askPastHigh);
+
+	TickByTickBidAskData data;
+	data.time = time;
+	data.bid_price = bidPrice;
+	data.ask_price = askPrice;
+	data.ask_size = __bid64_to_binary64(askSize,0, nullptr);
+	data.bid_size = __bid64_to_binary64(bidSize,0, nullptr);;
+	data.insert_to_db();
+	BOOST_LOG_TRIVIAL(info) << "This is an info message";
 }
 //! [tickbytickbidask]
 

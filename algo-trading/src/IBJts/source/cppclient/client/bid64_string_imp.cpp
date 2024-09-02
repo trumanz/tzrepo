@@ -12,7 +12,9 @@
 typedef uint64_t Decimal;
 
 extern "C" Decimal __bid64_from_string(const char* str, unsigned int rounding_mode, unsigned int* status) {
-    return std::stoll(str);
+    auto x = std::stod(str);
+    uint64_t v = 1000*1000*1000;
+    return v * x;
     // Define status codes
     const unsigned int STATUS_OK = 0;
     const unsigned int STATUS_INVALID_INPUT = 1;
@@ -62,11 +64,18 @@ extern "C" Decimal __bid64_from_string(const char* str, unsigned int rounding_mo
     return static_cast<Decimal>(value);
 }
 
-
+extern "C" double __bid64_to_binary64(Decimal value, unsigned int , unsigned int*)
+{
+    double v = 1000.0*1000.0*1000.0;
+    v = value/v;
+    return v;
+}
 
 extern "C" void __bid64_to_string(char* buffer, Decimal value, unsigned int* status) {
      size_t buffer_size = 64;
-     std::snprintf(buffer, buffer_size, "%lld",  value);
+    double v = 1000.0*1000.0*1000.0;
+      v = value/v;
+     std::snprintf(buffer, buffer_size, "%f",  v);
      return;
     // Define status codes
     const unsigned int STATUS_OK = 0;

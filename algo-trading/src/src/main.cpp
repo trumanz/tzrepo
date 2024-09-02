@@ -13,8 +13,13 @@
 
 const unsigned MAX_ATTEMPTS = 50;
 const unsigned SLEEP_TIME = 10;
-
 #include "IBClient.h"
+#include "log.h"
+
+
+
+
+
 /* IMPORTANT: always use your paper trading account. The code below will submit orders as part of the demonstration. */
 /* IB will not be responsible for accidental executions on your live account. */
 /* Any stock or option symbols displayed are for illustrative purposes only and are not intended to portray a recommendation. */
@@ -30,7 +35,7 @@ int main(int argc, char** argv)
     ib_api_servers.emplace_back("192.168.1.200", 7497); //remote paper, win,
     ib_api_servers.emplace_back("*", 7497); //local paper
 
-
+    init_logging();
 
     const char* connectOptions = argc > 3 ? argv[3] : "";
     int clientId = 0;

@@ -57,10 +57,21 @@ include_directories(src/IBJts/source/cppclient/)
 include_directories(src/IBJts/source/cppclient/client/)
 include_directories(src/IBJts/samples/Cpp/TestCppClient/)
 
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED COMPONENTS log log_setup system thread)
 include_directories(${Boost_INCLUDE_DIRS})
 
-
+#postgresql
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PQXX REQUIRED libpqxx)
+include_directories(${PQXX_INCLUDE_DIRS})
+link_directories(${PQXX_LIBRARY_DIRS})
+if(APPLE)
+   include_directories(/opt/homebrew/opt/libpq/include)
+   link_directories(/opt/homebrew/opt/libpq/lib)
+else()
+   find_package(PostgreSQL REQUIRED)
+   link_directories(${PostgreSQL_LIBRARY_DIRS})
+endif()
 
 
 file(GLOB_RECURSE IB_API_SRC_FILES IBJts/source/cppclient/client/*.cpp)
@@ -71,6 +82,10 @@ message(STATUS "Source files: ${SRC_FILES}")
 add_executable(runTests ${SRC_FILES} ${IB_API_SRC_FILES}
         src/src/main.cpp
         src/src/IBClient.cpp
-        src/src/IBClient.h)
+        src/src/IBClient.h
+        src/src/log.cpp
+        src/src/log.h
+        src/src/event/DataEvent.cpp
+        src/src/event/DataEvent.h)
 # Link test executable against gtest & gtest_main
-target_link_libraries(runTests    pthread )
+target_link_libraries(runTests    pthread ${Boost_LIBRARIES}  ${PQXX_LIBRARIES}  pq )
