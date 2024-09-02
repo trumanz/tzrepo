@@ -55,7 +55,7 @@ bool IBClient::connect()
 	auto host = this->api_host.c_str();
 	auto port = this->api_port;
 	auto clientId = this->client_id;
-	this->TestCppClient::connect(host, port, clientId);
+	return this->TestCppClient::connect(host, port, clientId);
 }
 
 

@@ -47,7 +47,7 @@ int main_test(int argc, char** argv)
 		client.requestBTCMktData();
 		uint64_t i = 0;
 		while( client.isConnected()) {
-			printf("loop %d\n", i++);
+			printf("loop %lu\n", i++);
 			client.processMessages();
 		}
 		if( attempt >= MAX_ATTEMPTS) {
@@ -59,5 +59,6 @@ int main_test(int argc, char** argv)
 	}
 
 	printf ( "End of C++ Socket Client Test\n");
+	return 0;
 }
 

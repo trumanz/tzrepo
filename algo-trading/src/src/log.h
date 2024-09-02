@@ -27,7 +27,7 @@ void init_logging();
 do{                        \
     char buffer[256]; \
     snprintf(buffer, sizeof(buffer), format, __VA_ARGS__); \
-    BOOST_LOG_TRIVIAL(info) << buffer << " " <<  __FILE_NAME__ << ":" << __LINE__; \
+    BOOST_LOG_TRIVIAL(info) << buffer << " " <<  __FILE__  << ":" << __LINE__; \
 }while(0)
 
 

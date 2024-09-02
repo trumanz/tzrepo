@@ -7,6 +7,10 @@ project(MyGTestProject)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+
+add_compile_options(-Werror=return-type)
+add_compile_options(-Werror=format)
+
 include_directories(src)
 
 
@@ -48,7 +52,7 @@ endif()
 
 # Add the OpenMP flags to the compiler
 if(OpenMP_CXX_FOUND)
-    target_compile_options(runTests PUBLIC ${OpenMP_CXX_FLAGS})
+	#    target_compile_options(runTests PUBLIC ${OpenMP_CXX_FLAGS})
 endif()
 
  
@@ -69,7 +73,7 @@ if(APPLE)
    include_directories(/opt/homebrew/opt/libpq/include)
    link_directories(/opt/homebrew/opt/libpq/lib)
 else()
-   find_package(PostgreSQL REQUIRED)
+   include_directories(/usr/include/postgresql)
    link_directories(${PostgreSQL_LIBRARY_DIRS})
 endif()
 

@@ -38,7 +38,7 @@ int main(int argc, char** argv)
     init_logging();
 
     const char* connectOptions = argc > 3 ? argv[3] : "";
-    int clientId = 0;
+    int clientId = 1;
 
     for (unsigned attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
         printf( "Attempt %u of %u\n", attempt, MAX_ATTEMPTS);
@@ -56,7 +56,7 @@ int main(int argc, char** argv)
         client.requestBTCMktData();
         uint64_t i = 0;
         while( client.isConnected()) {
-            printf("loop %llu\n", i++);
+            printf("loop %lu\n", i++);
             client.processMessages();
         }
 

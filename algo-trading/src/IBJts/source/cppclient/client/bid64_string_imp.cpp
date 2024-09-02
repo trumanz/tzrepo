@@ -7,6 +7,7 @@
 #include <sstream>
 #include <string>
 #include <cstdio>
+#include <cmath>
 
 // Define Decimal as uint64_t for simplicity
 typedef uint64_t Decimal;
