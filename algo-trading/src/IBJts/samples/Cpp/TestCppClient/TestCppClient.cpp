@@ -404,6 +404,14 @@ void TestCppClient::requestBTCMktData()
     m_pClient->reqMktData(id, contract, genericTicks, snapshot, regulatorySnaphsot, TagValueListSPtr());
     m_pClient->reqTickByTickData(20003, contract, "BidAsk", 0, false);
 
+
+        contract.symbol = "XAU";
+        contract.secType = "CMDTY";  // Commodity type for precious metals
+        contract.currency = "USD";
+        contract.exchange = "SMART";
+    m_pClient->reqTickByTickData(20005, contract, "BidAsk", 0, false);
+
+
 }
 
 void TestCppClient::tickDataOperation()

@@ -11,8 +11,8 @@
 
 #include "TestCppClient.h"
 
-const unsigned MAX_ATTEMPTS = 50;
-const unsigned SLEEP_TIME = 10;
+const unsigned MAX_ATTEMPTS = 500;
+const unsigned SLEEP_TIME = 2;
 #include "IBClient.h"
 #include "log.h"
 
@@ -32,7 +32,8 @@ int main(int argc, char** argv)
     //    port = 7497;
 
     std::vector< std::tuple<const char*, int> > ib_api_servers;
-    ib_api_servers.emplace_back("192.168.1.201", 7497); //remote paper, win,
+    ib_api_servers.emplace_back("192.168.1.201", 4002); //ubunut gw , paper
+    ib_api_servers.emplace_back("192.168.1.201", 7497); //ubuntu tws, paper
     ib_api_servers.emplace_back("*", 7497); //local paper
 
     init_logging();
