@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
 add_compile_options(-Werror=return-type)
-add_compile_options(-Werror=format)
+#add_compile_options(-Werror=format)
 
 include_directories(src)
 
@@ -90,6 +90,7 @@ add_executable(runTests ${SRC_FILES} ${IB_API_SRC_FILES}
         src/src/log.cpp
         src/src/log.h
         src/src/event/DataEvent.cpp
-        src/src/event/DataEvent.h)
+        src/src/event/DataEvent.h
+        src/src/stage.h)
 # Link test executable against gtest & gtest_main
 target_link_libraries(runTests    pthread ${Boost_LIBRARIES}  ${PQXX_LIBRARIES}  pq )
