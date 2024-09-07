@@ -1,0 +1,1 @@
+python3 -m panel serve app.py --show --allow-websocket-origin=192.168.1.201:5006   --address 192.168.1.201
