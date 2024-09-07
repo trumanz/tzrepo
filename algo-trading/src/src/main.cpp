@@ -47,7 +47,7 @@ int main(int argc, char** argv)
         auto api_server = ib_api_servers[attempt % ib_api_servers.size()];
         const char* host = std::get<0>(api_server);
         int port = std::get<1>(api_server);
-        IBClient client(host, port, clientId);
+        IBClient client(host, port, (clientId++)%10);
 
         if( connectOptions) {
             client.setConnectOptions( connectOptions);

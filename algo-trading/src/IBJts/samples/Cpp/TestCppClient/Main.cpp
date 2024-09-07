@@ -43,11 +43,11 @@ int main_test(int argc, char** argv)
 			client.setConnectOptions( connectOptions);
 		}
 		
-		client.connect( host, port, clientId);
+		client.connect( host, port, (clientId++)%10 );
 		client.requestBTCMktData();
 		uint64_t i = 0;
 		while( client.isConnected()) {
-			printf("loop %lu\n", i++);
+			std::cout << "loop: " << i++ << std::endl;
 			client.processMessages();
 		}
 		if( attempt >= MAX_ATTEMPTS) {
