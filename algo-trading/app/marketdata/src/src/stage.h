@@ -7,35 +7,39 @@
 
 #include <iostream>
 
-
 class Stage {
-
+public:
     enum class StageEnum {
         Dev,
         QA,
-        Prod
+        PROD
     };
+    StageEnum satge_value = Dev;
+    static Stage& getInstance() {
+        static Stage instance;
+        return instance;
+    }
+
+    StageEnum stage() {
+    }
+
 private:
     // Private constructor to prevent instantiation
     Stage() {
         std::cout << "Singleton instance Stage created" << std::endl;
+        const char* stage_env = std::getenv("ALGO_TRADING_STAGE");
+        if(stage_env == nullptr) {
+            return;
+        }
+        if(std::string("QA") == stage_env) {
+             this->satge_value = QA;
+        } else if (std::string("PROD") == stage_env) {
+            this->satge_value = PROD;
+        }
     }
-
-    // Delete copy constructor and assignment operator to prevent copying
     Stage(const Stage&) = delete;
     Stage& operator=(const Stage&) = delete;
 
-public:
-    // Static method that returns the single instance of the class
-    static Stage& getInstance() {
-        static Stage instance;  // Guaranteed to be created once and lazily instantiated
-        return instance;
-    }
-
-    // Example method to demonstrate functionality
-    void doSomething() {
-        std::cout << "Doing something with Singleton instance" << std::endl;
-    }
 };
 
 

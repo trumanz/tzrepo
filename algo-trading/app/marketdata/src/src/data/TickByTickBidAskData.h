@@ -9,11 +9,8 @@
 #include <iostream>
 
 
-class DataEvent {
 
-};
-
-class TickByTickBidAskData : public DataEvent {
+class TickByTickBidAskData  {
 public:
     time_t time;
     double bid_price;

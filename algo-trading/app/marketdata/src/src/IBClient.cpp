@@ -75,9 +75,15 @@ void IBClient::requestBTCMktData()
     m_pClient->reqMktData(id, contract, genericTicks, snapshot, regulatorySnaphsot, TagValueListSPtr());
     m_pClient->reqTickByTickData(20003, contract, "BidAsk", 0, false);
 
+
+		contract.symbol = "XAU";
+		contract.secType = "CMDTY";  // Commodity type for precious metals
+		contract.currency = "USD";
+		contract.exchange = "SMART";
+		m_pClient->reqTickByTickData(20005, contract, "BidAsk", 0, false);
+
 }
 
-//! [tickbytickbidask]
 void IBClient::tickByTickBidAsk(int reqId, time_t time, double bidPrice, double askPrice, Decimal bidSize, Decimal askSize, const TickAttribBidAsk& tickAttribBidAsk) {
     LOG_INFO("Tick-By-Tick. ReqId: %d, TickType: BidAsk, Time: %s, BidPrice: %s, AskPrice: %s, BidSize: %s, AskSize: %s, BidPastLow: %d, AskPastHigh: %d",
         reqId, ctime(&time), Utils::doubleMaxString(bidPrice).c_str(), Utils::doubleMaxString(askPrice).c_str(),
@@ -92,4 +98,9 @@ void IBClient::tickByTickBidAsk(int reqId, time_t time, double bidPrice, double 
 	data.insert_to_db();
 	BOOST_LOG_TRIVIAL(info) << "This is an info message";
 }
-//! [tickbytickbidask]
+
+
+void IBClient::tickSize( TickerId tickerId, TickType field, Decimal size) {
+	LOG_INFO( "Tick Size. Ticker Id: %ld, Field: %s, Size: %s\n",
+						   tickerId, tickTypeToString(field).c_str(), decimalStringToDisplay(size).c_str());
+}

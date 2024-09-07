@@ -37,6 +37,7 @@ public:
 	void requestBTCMktData();
 protected:
 	void tickByTickBidAsk(int reqId, time_t time, double bidPrice, double askPrice, Decimal bidSize, Decimal askSize, const TickAttribBidAsk& tickAttribBidAsk) override;
+	void tickSize( TickerId tickerId, TickType field, Decimal size) override;
 
 };
 

@@ -42,7 +42,7 @@ int main(int argc, char** argv)
     int clientId = 1;
 
     for (unsigned attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-        printf( "Attempt %u of %u\n", attempt, MAX_ATTEMPTS);
+        LOG_INFO( "Attempt %u of %u", attempt, MAX_ATTEMPTS);
 
         auto api_server = ib_api_servers[attempt % ib_api_servers.size()];
         const char* host = std::get<0>(api_server);
@@ -57,14 +57,14 @@ int main(int argc, char** argv)
         client.requestBTCMktData();
         uint64_t i = 0;
         while( client.isConnected()) {
-            printf("loop %lu\n", i++);
+            LOG_INFO("loop %lu", i++);
             client.processMessages();
         }
 
-        printf( "Sleeping %u seconds before next attempt\n", SLEEP_TIME);
+        LOG_INFO( "Sleeping %u seconds before next attempt", SLEEP_TIME);
         std::this_thread::sleep_for(std::chrono::seconds(SLEEP_TIME));
     }
 
-    printf ( "End of C++ Socket Client Test\n");
+    LOG_INFO ( "End of C++ Socket Client Test");
 }
 
